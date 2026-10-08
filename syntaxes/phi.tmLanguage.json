@@ -1,0 +1,466 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "PHI",
+  "scopeName": "source.phi",
+  "fileTypes": ["phi"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#asm-block" },
+    { "include": "#use" },
+    { "include": "#class-header" },
+    { "include": "#struct-header" },
+    { "include": "#method-header" },
+    { "include": "#statements" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "comment": "A '#' with nothing after it on its line opens a block comment that runs to the next '#' (the rest of that line is comment too).",
+          "name": "comment.block.phi",
+          "begin": "#(?=\\s*$)",
+          "beginCaptures": { "0": { "name": "punctuation.definition.comment.begin.phi" } },
+          "end": "(#).*$",
+          "endCaptures": { "1": { "name": "punctuation.definition.comment.end.phi" } }
+        },
+        {
+          "name": "comment.line.number-sign.phi",
+          "match": "(#).*$",
+          "captures": { "1": { "name": "punctuation.definition.comment.phi" } }
+        }
+      ]
+    },
+
+    "strings": {
+      "comment": "A quote followed directly by a letter or digit doesn't end the string, so 'hasn't' works.",
+      "name": "string.quoted.single.phi",
+      "begin": "'",
+      "beginCaptures": { "0": { "name": "punctuation.definition.string.begin.phi" } },
+      "end": "'(?![\\p{L}\\p{N}])",
+      "endCaptures": { "0": { "name": "punctuation.definition.string.end.phi" } },
+      "patterns": [
+        { "name": "constant.character.escape.phi", "match": "\\\\[rnt0\\\\']" },
+        { "name": "invalid.illegal.unknown-escape.phi", "match": "\\\\." }
+      ]
+    },
+
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.phi", "match": "\\b0[xX][0-9A-Fa-f_]+\\b" },
+        { "name": "constant.numeric.binary.phi", "match": "\\b[01][01_]*b\\b" },
+        { "name": "constant.numeric.decimal.phi", "match": "\\b\\d[\\d_]*\\.\\d+\\b" },
+        { "name": "constant.numeric.integer.phi", "match": "\\b\\d[\\d_]*\\b" }
+      ]
+    },
+
+    "use": {
+      "name": "meta.use.phi",
+      "match": "\\b(use)\\s+([A-Za-z_][\\w]*(?:\\.[A-Za-z_][\\w]*)*)\\s*(;)?",
+      "captures": {
+        "1": { "name": "keyword.control.import.phi" },
+        "2": { "name": "entity.name.namespace.phi" },
+        "3": { "name": "punctuation.terminator.statement.phi" }
+      }
+    },
+
+    "class-header": {
+      "name": "meta.class.phi",
+      "match": "\\b(phi)(\\.)([A-Za-z_]\\w*)\\s*(:)\\s*([A-Za-z_]\\w*)",
+      "captures": {
+        "1": { "name": "storage.type.class.phi" },
+        "2": { "name": "punctuation.accessor.phi" },
+        "3": { "name": "entity.name.type.class.phi" },
+        "4": { "name": "punctuation.separator.inheritance.phi" },
+        "5": {
+          "patterns": [
+            { "name": "support.class.base.phi", "match": "\\b(?:Bootloader|OS|Kernel|Program|Library)\\b" },
+            { "name": "entity.other.inherited-class.phi", "match": "\\w+" }
+          ]
+        }
+      }
+    },
+
+    "struct-header": {
+      "name": "meta.struct.phi",
+      "match": "\\b(struct)(\\.)([A-Za-z_]\\w*)",
+      "captures": {
+        "1": { "name": "storage.type.struct.phi" },
+        "2": { "name": "punctuation.accessor.phi" },
+        "3": { "name": "entity.name.type.struct.phi" }
+      }
+    },
+
+    "asm-block": {
+      "comment": "asm.Name { ... } holds raw NASM. The header must be followed by '{' or the end of the line, so 'call asm.Name;' isn't a block.",
+      "name": "meta.asm-block.phi",
+      "begin": "\\b(asm|arm)(\\.)([A-Za-z_]\\w*)(?=\\s*(?:\\{|#|$))",
+      "beginCaptures": {
+        "1": { "name": "storage.type.asm.phi" },
+        "2": { "name": "punctuation.accessor.phi" },
+        "3": { "name": "entity.name.function.asm.phi" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#comments" },
+        {
+          "begin": "\\{",
+          "beginCaptures": { "0": { "name": "punctuation.section.block.begin.phi" } },
+          "end": "\\}",
+          "endCaptures": { "0": { "name": "punctuation.section.block.end.phi" } },
+          "contentName": "meta.embedded.block.asm.phi",
+          "patterns": [ { "include": "#asm-body" } ]
+        }
+      ]
+    },
+
+    "asm-body": {
+      "patterns": [
+        { "name": "comment.line.semicolon.asm.phi", "match": ";.*$" },
+        {
+          "name": "meta.interpolation.phi",
+          "match": "(\\{)\\s*([A-Z][A-Z0-9_]*)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.section.interpolation.begin.phi" },
+            "2": { "name": "constant.other.phi" },
+            "3": { "name": "punctuation.section.interpolation.end.phi" }
+          }
+        },
+        {
+          "name": "meta.interpolation.phi",
+          "match": "(\\{)\\s*([A-Za-z_][\\w.]*)\\s*(\\})",
+          "captures": {
+            "1": { "name": "punctuation.section.interpolation.begin.phi" },
+            "2": { "name": "variable.other.phi" },
+            "3": { "name": "punctuation.section.interpolation.end.phi" }
+          }
+        },
+        { "comment": "an unmatched '{' would end the block early in the compiler too; show it", "name": "invalid.illegal.brace.phi", "match": "\\{" },
+        { "name": "string.quoted.double.asm.phi", "match": "\"[^\"]*\"" },
+        { "name": "string.quoted.single.asm.phi", "match": "'[^']*'" },
+        { "name": "string.quoted.other.asm.phi", "match": "`[^`]*`" },
+        { "name": "keyword.other.directive.asm.phi", "match": "(?i)\\b(?:db|dw|dd|dq|dt|resb|resw|resd|resq|times|equ|align|bits|use16|use32|section|segment|global|extern|org|incbin)\\b" },
+        { "name": "keyword.control.directive.preprocessor.asm.phi", "match": "%\\w+" },
+        {
+          "match": "^\\s*(?:(\\.?[A-Za-z_$?@][\\w$?@.]*)(:))?\\s*(?:((?i:rep|repe|repne|repz|repnz|lock))\\s+)?([A-Za-z][A-Za-z0-9]*)\\b(?!\\s*:)",
+          "captures": {
+            "1": { "name": "entity.name.function.label.asm.phi" },
+            "2": { "name": "punctuation.separator.label.asm.phi" },
+            "3": { "name": "keyword.other.prefix.asm.phi" },
+            "4": { "name": "keyword.other.instruction.asm.phi" }
+          }
+        },
+        {
+          "match": "^\\s*(\\.?[A-Za-z_$?@][\\w$?@.]*)(:)",
+          "captures": {
+            "1": { "name": "entity.name.function.label.asm.phi" },
+            "2": { "name": "punctuation.separator.label.asm.phi" }
+          }
+        },
+        { "name": "variable.language.register.asm.phi", "match": "(?i)\\b(?:[er]?[abcd]x|[abcd][lh]|[er]?(?:si|di|sp|bp|ip)|[cdefgs]s|cr[0-8]|dr[0-7]|[er]?flags|st[0-7]?|[xy]mm\\d+)\\b" },
+        { "name": "storage.type.size.asm.phi", "match": "(?i)\\b(?:byte|word|dword|qword|tword|ptr|short|near|far|strict)\\b" },
+        { "name": "constant.numeric.hex.asm.phi", "match": "(?i)\\b(?:0x[0-9a-f_]+|[0-9][0-9a-f_]*h)\\b" },
+        { "name": "constant.numeric.binary.asm.phi", "match": "(?i)\\b[01][01_]*b\\b" },
+        { "name": "constant.numeric.integer.asm.phi", "match": "\\b\\d+\\b" },
+        { "name": "variable.language.location.asm.phi", "match": "\\$\\$?" },
+        { "name": "keyword.operator.asm.phi", "match": "[+\\-*/]" },
+        { "name": "punctuation.definition.address.asm.phi", "match": "[\\[\\]]" },
+        { "name": "punctuation.separator.asm.phi", "match": "," }
+      ]
+    },
+
+    "method-header": {
+      "patterns": [
+        {
+          "name": "meta.method.end.phi",
+          "begin": "^\\s*(\\[)\\s*(end)\\b",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.method.begin.phi" },
+            "2": { "name": "keyword.control.end.phi" }
+          },
+          "end": "\\]",
+          "endCaptures": { "0": { "name": "punctuation.definition.method.end.phi" } },
+          "patterns": [
+            { "name": "punctuation.separator.return.phi", "match": ":" },
+            { "include": "#statements" }
+          ]
+        },
+        {
+          "name": "meta.method.isr.phi",
+          "match": "^\\s*(\\[)\\s*(isr)\\s+([A-Za-z_]\\w*)\\s*(\\])",
+          "captures": {
+            "1": { "name": "punctuation.definition.method.begin.phi" },
+            "2": { "name": "storage.modifier.isr.phi" },
+            "3": { "name": "entity.name.function.isr.phi" },
+            "4": { "name": "punctuation.definition.method.end.phi" }
+          }
+        },
+        {
+          "name": "meta.method.event.phi",
+          "match": "^\\s*(\\[)\\s*(OS|Bootloader)(\\.)([A-Za-z_]\\w*)\\s*(\\])",
+          "captures": {
+            "1": { "name": "punctuation.definition.method.begin.phi" },
+            "2": { "name": "support.class.builtin.phi" },
+            "3": { "name": "punctuation.accessor.phi" },
+            "4": { "name": "entity.name.function.event.phi" },
+            "5": { "name": "punctuation.definition.method.end.phi" }
+          }
+        },
+        {
+          "name": "meta.method.declaration.phi",
+          "begin": "^\\s*(\\[)\\s*([A-Za-z_]\\w*)\\s*(?=[:\\]])",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.method.begin.phi" },
+            "2": { "name": "entity.name.function.phi" }
+          },
+          "end": "\\]",
+          "endCaptures": { "0": { "name": "punctuation.definition.method.end.phi" } },
+          "patterns": [
+            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i16|u16|i8|u8|byt|bln|str|var|ptr|dec|fin)\\b)" },
+            { "include": "#statements" }
+          ]
+        }
+      ]
+    },
+
+    "statements": {
+      "patterns": [
+        { "include": "#comments" },
+        { "include": "#strings" },
+        { "include": "#const-declaration" },
+        { "include": "#declaration" },
+        { "include": "#control" },
+        { "include": "#call" },
+        { "include": "#keywords" },
+        { "include": "#builtins" },
+        { "include": "#numbers" },
+        { "include": "#member-access" },
+        { "include": "#constants" },
+        { "include": "#operators" },
+        { "include": "#punctuation" }
+      ]
+    },
+
+    "primitive-type": {
+      "name": "storage.type.primitive.phi",
+      "match": "\\b(?:int|i32|u32|i16|u16|i8|u8|byt|bln|str|var|dec|fin)\\b"
+    },
+
+    "type-name": {
+      "patterns": [
+        { "include": "#primitive-type" },
+        { "name": "entity.name.type.phi", "match": "[A-Za-z_]\\w*" }
+      ]
+    },
+
+    "const-declaration": {
+      "name": "meta.declaration.constant.phi",
+      "match": "\\b(const)\\s+(?:(ptr)\\s*(<)\\s*([A-Za-z_]\\w*)\\s*(>)|([A-Za-z_]\\w*))\\s+([A-Za-z_]\\w*)",
+      "captures": {
+        "1": { "name": "storage.modifier.const.phi" },
+        "2": { "name": "storage.type.ptr.phi" },
+        "3": { "name": "punctuation.definition.generic.begin.phi" },
+        "4": { "patterns": [ { "include": "#type-name" } ] },
+        "5": { "name": "punctuation.definition.generic.end.phi" },
+        "6": { "patterns": [ { "include": "#type-name" } ] },
+        "7": { "name": "variable.other.constant.phi" }
+      }
+    },
+
+    "declaration": {
+      "patterns": [
+        {
+          "name": "meta.declaration.pointer.phi",
+          "match": "\\b(ptr)\\s*(<)\\s*([A-Za-z_]\\w*)\\s*(>)(?:\\s*([A-Za-z_]\\w*))?",
+          "captures": {
+            "1": { "name": "storage.type.ptr.phi" },
+            "2": { "name": "punctuation.definition.generic.begin.phi" },
+            "3": { "patterns": [ { "include": "#type-name" } ] },
+            "4": { "name": "punctuation.definition.generic.end.phi" },
+            "5": { "name": "variable.other.declaration.phi" }
+          }
+        },
+        {
+          "name": "meta.declaration.variable.phi",
+          "match": "\\b(int|i32|u32|i16|u16|i8|u8|byt|bln|str|var|dec|fin)\\s+([A-Za-z_]\\w*)\\b(?!\\s*\\.)",
+          "captures": {
+            "1": { "name": "storage.type.primitive.phi" },
+            "2": {
+              "patterns": [
+                { "include": "#keywords" },
+                { "name": "variable.other.declaration.phi", "match": "\\w+" }
+              ]
+            }
+          }
+        },
+        {
+          "comment": "A struct-typed variable: Task current; Point position;",
+          "name": "meta.declaration.variable.phi",
+          "match": "^\\s*([A-Z]\\w*)\\s+([A-Za-z_]\\w*)\\s*(?=[:=;\\[])",
+          "captures": {
+            "1": { "name": "entity.name.type.struct.phi" },
+            "2": { "name": "variable.other.declaration.phi" }
+          }
+        },
+        {
+          "match": "\\b(new)\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.operator.new.phi" },
+            "2": { "patterns": [ { "include": "#type-name" } ] }
+          }
+        },
+        { "include": "#primitive-type" }
+      ]
+    },
+
+    "control": {
+      "patterns": [
+        { "name": "keyword.control.conditional.phi", "match": "\\b(?:if|elif|else)\\b" },
+        { "name": "keyword.control.loop.phi", "match": "\\bwhile\\b" },
+        { "name": "keyword.control.unsafe.phi", "match": "\\bunsafe\\b" },
+        { "name": "keyword.control.flow.exit.phi", "match": "\\bexit\\b" },
+        { "name": "keyword.control.block-end.phi", "match": ";;" }
+      ]
+    },
+
+    "call": {
+      "patterns": [
+        {
+          "name": "meta.function-call.builtin.phi",
+          "match": "\\b(call)\\s+(?:([A-Za-z_]\\w*(?:[.:][\\w]+)*)\\s+(is|=)\\s+)?(OS|Bootloader)\\s*(\\.)\\s*([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.control.call.phi" },
+            "2": { "name": "variable.other.phi" },
+            "3": { "name": "keyword.operator.assignment.phi" },
+            "4": { "name": "support.class.builtin.phi" },
+            "5": { "name": "punctuation.accessor.phi" },
+            "6": { "name": "support.function.builtin.phi" }
+          }
+        },
+        {
+          "name": "meta.function-call.phi",
+          "match": "\\b(call)\\s+(?:([A-Za-z_]\\w*(?:[.:][\\w]+)*)\\s+(is|=)\\s+)?(?:([A-Za-z_]\\w*)\\s*(\\.)\\s*)?([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.control.call.phi" },
+            "2": { "name": "variable.other.phi" },
+            "3": { "name": "keyword.operator.assignment.phi" },
+            "4": {
+              "patterns": [
+                { "name": "storage.type.asm.phi", "match": "\\b(?:asm|arm)\\b" },
+                { "name": "entity.name.type.class.phi", "match": "\\w+" }
+              ]
+            },
+            "5": { "name": "punctuation.accessor.phi" },
+            "6": { "name": "entity.name.function.phi" }
+          }
+        },
+        { "name": "keyword.control.call.phi", "match": "\\bcall\\b" }
+      ]
+    },
+
+    "keywords": {
+      "patterns": [
+        { "name": "keyword.other.io.phi", "match": "\\b(?:log|debug|ask)\\b" },
+        { "name": "keyword.other.port.phi", "match": "\\b(?:out|outw|outd)\\b" },
+        { "name": "keyword.operator.memory.phi", "match": "\\b(?:new|free|addr)\\b" },
+        { "name": "keyword.operator.port.phi", "match": "\\b(?:in|inw|ind)\\b" },
+        { "name": "keyword.operator.logical.phi", "match": "\\b(?:and|or|not)\\b" },
+        { "name": "keyword.operator.comparison.phi", "match": "\\b(?:is|below|above|atmost|atleast|has)\\b" },
+        { "name": "constant.language.boolean.phi", "match": "\\b(?:true|false)\\b" },
+        { "name": "keyword.control.import.phi", "match": "\\buse\\b" },
+        { "name": "storage.modifier.const.phi", "match": "\\bconst\\b" }
+      ]
+    },
+
+    "builtins": {
+      "patterns": [
+        {
+          "match": "\\b(Colors)\\s*(\\.)\\s*(Black|Blue|Green|Cyan|Red|Magenta|Brown|LightGray|Gray|LightBlue|LightGreen|LightCyan|LightRed|LightMagenta|Yellow|White)\\b",
+          "captures": {
+            "1": { "name": "support.class.builtin.phi" },
+            "2": { "name": "punctuation.accessor.phi" },
+            "3": { "name": "support.constant.color.phi" }
+          }
+        },
+        {
+          "match": "\\b(OS|Bootloader)\\s*(\\.)\\s*([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "support.class.builtin.phi" },
+            "2": { "name": "punctuation.accessor.phi" },
+            "3": { "name": "support.function.builtin.phi" }
+          }
+        }
+      ]
+    },
+
+    "member-access": {
+      "patterns": [
+        {
+          "match": "(\\.)\\s*(len)\\b",
+          "captures": {
+            "1": { "name": "punctuation.accessor.phi" },
+            "2": { "name": "support.variable.property.len.phi" }
+          }
+        },
+        {
+          "match": "\\b([A-Z]\\w*)\\s*(\\.)(?=\\s*[A-Za-z_])",
+          "captures": {
+            "1": { "name": "entity.name.type.class.phi" },
+            "2": { "name": "punctuation.accessor.phi" }
+          }
+        },
+        {
+          "match": "(\\.)\\s*([A-Z][A-Z0-9_]+)\\b",
+          "captures": {
+            "1": { "name": "punctuation.accessor.phi" },
+            "2": { "name": "constant.other.phi" }
+          }
+        },
+        {
+          "match": "(\\.)\\s*([A-Z]\\w*)",
+          "captures": {
+            "1": { "name": "punctuation.accessor.phi" },
+            "2": { "name": "entity.name.function.phi" }
+          }
+        },
+        {
+          "match": "(\\.)\\s*([a-z_]\\w*)",
+          "captures": {
+            "1": { "name": "punctuation.accessor.phi" },
+            "2": { "name": "variable.other.property.phi" }
+          }
+        }
+      ]
+    },
+
+    "constants": {
+      "name": "constant.other.phi",
+      "match": "\\b(?!OS\\b)[A-Z][A-Z0-9_]*[A-Z0-9]\\b|\\b[A-Z]_[A-Z0-9_]*\\b"
+    },
+
+    "operators": {
+      "patterns": [
+        { "name": "keyword.operator.assignment.compound.phi", "match": "\\+\\+|--|\\*\\*|//|%%|\\^\\^" },
+        { "name": "keyword.operator.bitwise.shift.phi", "match": "<<|>>" },
+        { "name": "keyword.operator.comparison.phi", "match": "==|!=|<=|>=|<|>" },
+        { "name": "keyword.operator.assignment.phi", "match": "=" },
+        { "name": "keyword.operator.arithmetic.phi", "match": "[+\\-*/%]" },
+        { "name": "keyword.operator.bitwise.phi", "match": "[&|^~]" },
+        { "name": "keyword.operator.logical.phi", "match": "!" }
+      ]
+    },
+
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.terminator.statement.phi", "match": ";" },
+        { "name": "punctuation.separator.colon.phi", "match": ":" },
+        { "name": "punctuation.accessor.phi", "match": "\\." },
+        { "name": "punctuation.section.block.begin.phi", "match": "\\{" },
+        { "name": "punctuation.section.block.end.phi", "match": "\\}" },
+        { "name": "punctuation.section.brackets.begin.phi", "match": "\\[" },
+        { "name": "punctuation.section.brackets.end.phi", "match": "\\]" },
+        { "name": "punctuation.section.parens.begin.phi", "match": "\\(" },
+        { "name": "punctuation.section.parens.end.phi", "match": "\\)" }
+      ]
+    }
+  }
+}

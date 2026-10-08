@@ -1,0 +1,39 @@
+{
+  "comments": {
+    "lineComment": "#"
+  },
+  "brackets": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"]
+  ],
+  "autoClosingPairs": [
+    { "open": "{", "close": "}" },
+    { "open": "[", "close": "]" },
+    { "open": "(", "close": ")" },
+    { "open": "'", "close": "'", "notIn": ["string", "comment"] }
+  ],
+  "autoCloseBefore": ";:.=}])> \n\t",
+  "surroundingPairs": [
+    ["{", "}"],
+    ["[", "]"],
+    ["(", ")"],
+    ["'", "'"]
+  ],
+  "wordPattern": "[A-Za-z_][A-Za-z0-9_]*|-?(?:0[xX][0-9A-Fa-f_]+|[01][01_]*b|\\d[\\d_]*(?:\\.\\d+)?)",
+  "indentationRules": {
+    "increaseIndentPattern": "^\\s*(?:(?:if|elif|else|while|unsafe)\\b.*|\\[(?!\\s*end\\b)[^\\]]*\\]\\s*(?:#.*)?|.*\\{\\s*(?:#.*)?)$",
+    "decreaseIndentPattern": "^\\s*(?:;;|\\[\\s*end\\b|\\})"
+  },
+  "onEnterRules": [
+    {
+      "comment": "Keep line comments going when Enter is pressed inside one",
+      "beforeText": "^\\s*#\\s?\\S.*$",
+      "afterText": "^(?!\\s*$)",
+      "action": { "indent": "none", "appendText": "# " }
+    }
+  ],
+  "folding": {
+    "offSide": false
+  }
+}

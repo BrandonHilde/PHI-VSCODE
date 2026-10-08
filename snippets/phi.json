@@ -1,0 +1,200 @@
+{
+  "Kernel": {
+    "prefix": ["kernel", "phi.kernel"],
+    "description": "A 32-bit protected-mode kernel",
+    "body": [
+      "phi.${1:Hello}:Kernel",
+      "{",
+      "\t${0:log 'Hello from 32-bit PHI\\n';}",
+      "}"
+    ]
+  },
+  "Program": {
+    "prefix": ["program", "phi.program"],
+    "description": "A user program that runs inside a kernel (put it in the kernel's rootfs folder)",
+    "body": [
+      "phi.${1:Hello}:Program",
+      "{",
+      "\t${0:log 'Hello from a program\\n';}",
+      "\texit 0;",
+      "}"
+    ]
+  },
+  "Bootloader and OS": {
+    "prefix": ["bootloader", "phi.bootloader"],
+    "description": "A 16-bit boot sector that loads the OS classes",
+    "body": [
+      "phi.${1:Boot}:Bootloader",
+      "{",
+      "\tlog 'Booting...\\r\\n';",
+      "\tcall Bootloader.JumpToSectorTwo;",
+      "}",
+      "",
+      "phi.${2:Shell}:OS",
+      "{",
+      "\t${0:log 'Hello from the OS\\r\\n';}",
+      "}"
+    ]
+  },
+  "Library class": {
+    "prefix": ["library", "phi.library"],
+    "description": "Shared code, like a driver",
+    "body": [
+      "phi.${1:Name}:Library",
+      "{",
+      "\t$0",
+      "}"
+    ]
+  },
+  "Struct": {
+    "prefix": ["struct", "struct."],
+    "description": "A struct: fields in order, no padding",
+    "body": [
+      "struct.${1:Name}",
+      "{",
+      "\t${2:u32} ${3:id};",
+      "\t$0",
+      "}"
+    ]
+  },
+  "Method": {
+    "prefix": ["method", "meth"],
+    "description": "A method with parameters",
+    "body": [
+      "[${1:Name}: ${2:int} ${3:value}: ${4:0};]",
+      "\t$0",
+      "[end]"
+    ]
+  },
+  "Method returning a value": {
+    "prefix": ["methodr", "func"],
+    "description": "A method that returns a value with [end: value]",
+    "body": [
+      "[${1:Name}: ${2:int} ${3:x}: ${4:0};]",
+      "\t$0",
+      "[end: ${5:$3}]"
+    ]
+  },
+  "Interrupt handler": {
+    "prefix": "isr",
+    "description": "An interrupt handler, installed with OS.SetInterruptHandler",
+    "body": [
+      "[isr ${1:Handler}]",
+      "\t$0",
+      "\tcall OS.EndOfInterrupt: ${2:1};",
+      "[end]"
+    ]
+  },
+  "Timer event": {
+    "prefix": ["timer", "OS.TimerEvent"],
+    "description": "Runs 60 times a second after call OS.SetupInteruptTimer;",
+    "body": [
+      "[OS.TimerEvent]",
+      "\t${0:ticks++;}",
+      "[end]"
+    ]
+  },
+  "Keyboard event": {
+    "prefix": ["keyboard", "OS.KeyboardEvent"],
+    "description": "Runs on every key press and release after call OS.SetupKeyboardInterupt;",
+    "body": [
+      "[OS.KeyboardEvent]",
+      "\tcall ${1:key} is OS.GetKey;",
+      "\t$0",
+      "[end]"
+    ]
+  },
+  "If": {
+    "prefix": "if",
+    "description": "if block",
+    "body": [
+      "if ${1:condition}",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "If / else": {
+    "prefix": "ifelse",
+    "description": "if / else blocks",
+    "body": [
+      "if ${1:condition}",
+      "\t$2",
+      ";;",
+      "else",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "Elif": {
+    "prefix": "elif",
+    "description": "elif block",
+    "body": [
+      "elif ${1:condition}",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "While": {
+    "prefix": "while",
+    "description": "while loop",
+    "body": [
+      "while ${1:condition}",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "Counting loop": {
+    "prefix": ["fori", "loop"],
+    "description": "while loop with a counter",
+    "body": [
+      "while int ${1:i}: 0; $1 < ${2:count}; $1++;",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "Unsafe": {
+    "prefix": "unsafe",
+    "description": "Code without bounds checks",
+    "body": [
+      "unsafe",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "Assembly block": {
+    "prefix": ["asm", "asm."],
+    "description": "A NASM block; {name} is a class variable's address, {CONST} a constant",
+    "body": [
+      "asm.${1:Name}",
+      "{",
+      "\t${0:mov eax, 0}",
+      "\tret",
+      "}"
+    ]
+  },
+  "Constant": {
+    "prefix": "const",
+    "description": "A constant known when the program is built",
+    "body": "const ${1:u16} ${2:NAME}: ${0:0};"
+  },
+  "Pointer": {
+    "prefix": "ptr",
+    "description": "A pointer variable",
+    "body": "ptr<${1:u8}> ${2:p}: ${0:addr buffer};"
+  },
+  "Allocate": {
+    "prefix": "new",
+    "description": "Memory from the kernel heap (32-bit kernels)",
+    "body": "ptr<${1:u8}> ${2:buffer}: new $1${3:[${4:512}]};"
+  },
+  "Log": {
+    "prefix": "log",
+    "description": "Print to the screen and serial port",
+    "body": "log '${1:text}'${2: value} '\\n';"
+  },
+  "Use": {
+    "prefix": "use",
+    "description": "Load another file",
+    "body": "use ${1|drivers.vga_text,boot.info,fs.fat16,proc.process,memory.list,memory.heap,user.text,drivers.ata,drivers.disk,drivers.rtc|};"
+  }
+}

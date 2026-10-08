@@ -1,0 +1,299 @@
+{
+  "name": "phi-language",
+  "displayName": "PHI Language",
+  "description": "Language support for PHI, the systems language for boot sectors, kernels and PHI OS: highlighting, compiler diagnostics, IntelliSense, outline, go to definition, and build/run commands.",
+  "version": "0.1.0",
+  "publisher": "phi-lang",
+  "license": "GPL-3.0-only",
+  "icon": "images/phi.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Linters"
+  ],
+  "keywords": [
+    "phi",
+    "os",
+    "kernel",
+    "x86",
+    "bootloader"
+  ],
+  "main": "./out/src/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/*.phi"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "phi",
+        "aliases": [
+          "PHI",
+          "phi"
+        ],
+        "extensions": [
+          ".phi"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./images/phi.png",
+          "dark": "./images/phi.png"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "phi",
+        "scopeName": "source.phi",
+        "path": "./syntaxes/phi.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.asm.phi": "asm"
+        }
+      },
+      {
+        "scopeName": "markdown.phi.codeblock",
+        "path": "./syntaxes/phi.markdown.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ],
+        "embeddedLanguages": {
+          "meta.embedded.block.phi": "phi"
+        }
+      }
+    ],
+    "snippets": [
+      {
+        "language": "phi",
+        "path": "./snippets/phi.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "phi.check",
+        "title": "Check File",
+        "category": "PHI",
+        "icon": "$(check)"
+      },
+      {
+        "command": "phi.build",
+        "title": "Build",
+        "category": "PHI",
+        "icon": "$(package)"
+      },
+      {
+        "command": "phi.run",
+        "title": "Build and Run in QEMU",
+        "category": "PHI",
+        "icon": "$(play)"
+      },
+      {
+        "command": "phi.runDebug",
+        "title": "Build and Run in QEMU (wait for gdb)",
+        "category": "PHI",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "phi.test",
+        "title": "Run Tests",
+        "category": "PHI",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "phi.showAssembly",
+        "title": "Show Generated Assembly",
+        "category": "PHI",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "phi.locateCompiler",
+        "title": "Locate Compiler…",
+        "category": "PHI"
+      }
+    ],
+    "menus": {
+      "editor/title/run": [
+        {
+          "command": "phi.run",
+          "when": "resourceLangId == phi",
+          "group": "navigation@0"
+        },
+        {
+          "command": "phi.runDebug",
+          "when": "resourceLangId == phi",
+          "group": "navigation@1"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "phi.check",
+          "when": "resourceLangId == phi",
+          "group": "phi@1"
+        },
+        {
+          "command": "phi.build",
+          "when": "resourceLangId == phi",
+          "group": "phi@2"
+        },
+        {
+          "command": "phi.run",
+          "when": "resourceLangId == phi",
+          "group": "phi@3"
+        },
+        {
+          "command": "phi.showAssembly",
+          "when": "resourceLangId == phi",
+          "group": "phi@4"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "phi.check",
+          "when": "editorLangId == phi"
+        },
+        {
+          "command": "phi.build",
+          "when": "editorLangId == phi"
+        },
+        {
+          "command": "phi.run",
+          "when": "editorLangId == phi"
+        },
+        {
+          "command": "phi.runDebug",
+          "when": "editorLangId == phi"
+        },
+        {
+          "command": "phi.showAssembly",
+          "when": "editorLangId == phi"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "phi.run",
+        "key": "f5",
+        "when": "editorLangId == phi && !inDebugMode"
+      }
+    ],
+    "configuration": {
+      "title": "PHI",
+      "properties": {
+        "phi.compilerPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to the `phi` compiler (`phi.exe` on Windows). When empty, the extension looks for `phi` on `PATH`, then for `Compiler/Phi.Cli/bin/*/net8.0/phi.exe` in the workspace and its parent folders."
+        },
+        "phi.libraryPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Path to the PHI standard library (`lib/phi`), used for go to definition, hovers and completions of `use` files. When empty, it is found next to the compiler or in the workspace."
+        },
+        "phi.validate": {
+          "type": "string",
+          "enum": [
+            "onSave",
+            "onType",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Run `phi check` when a file is opened or saved.",
+            "Also run `phi check` while typing (writes a hidden temporary copy next to the file so `use` paths resolve).",
+            "Don't run the compiler for diagnostics."
+          ],
+          "default": "onSave",
+          "markdownDescription": "When to run `phi check` and show its errors in the Problems panel."
+        },
+        "phi.validateDelay": {
+          "type": "number",
+          "default": 600,
+          "minimum": 100,
+          "markdownDescription": "Milliseconds to wait after the last keystroke before checking, when `#phi.validate#` is `onType`."
+        },
+        "phi.qemuPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Full path to `qemu-system-i386`, passed to the compiler as `PHI_QEMU`. Leave empty to use `PATH`."
+        },
+        "phi.nasmPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine-overridable",
+          "markdownDescription": "Full path to `nasm`, passed to the compiler as `PHI_NASM`. Leave empty to use `PATH`."
+        }
+      }
+    },
+    "taskDefinitions": [
+      {
+        "type": "phi",
+        "required": [
+          "command"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "enum": [
+              "check",
+              "build",
+              "run",
+              "test"
+            ],
+            "description": "The phi command to run."
+          },
+          "file": {
+            "type": "string",
+            "description": "The .phi file (for check, build and run) or test folder (for test). Defaults to the active file."
+          },
+          "args": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Extra arguments, such as --debug or -o <dir>."
+          }
+        }
+      }
+    ],
+    "problemMatchers": [
+      {
+        "name": "phi",
+        "owner": "phi",
+        "source": "phi",
+        "fileLocation": [
+          "autoDetect",
+          "${workspaceFolder}"
+        ],
+        "pattern": {
+          "regexp": "^(.+?):(\\d+):(\\d+):\\s+(error|warning):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      }
+    ]
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "npm run compile && node --test \"out/test/*.test.js\"",
+    "sync-builtins": "node scripts/sync-builtins.js",
+    "package": "vsce package --no-dependencies --allow-missing-repository",
+    "vscode:prepublish": "npm run compile",
+    "test:integration": "npm run compile && node scripts/integration.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "~1.85.0",
+    "@vscode/vsce": "^3.2.0",
+    "typescript": "^5.4.0",
+    "vscode-oniguruma": "^2.0.1",
+    "vscode-textmate": "^9.0.0"
+  },
+  "homepage": "https://github.com/BrandonHilde/PHI"
+}
