@@ -36,6 +36,18 @@ it). Otherwise put `phi` on your `PATH`, run **PHI: Locate Compiler…**, or set
 Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `phi.nasmPath` and
 `phi.qemuPath`.
 
+## Install
+
+1. Install the PHI compiler (see [Requirements](#requirements)).
+2. Build the extension package. The `.vsix` isn't in git, so build it from source (needs Node.js):
+
+   ```
+   npm install
+   npm run package
+   ```
+
+3. Install the package with `code --install-extension phi-language-0.1.0.vsix`, or open the Extensions view in VS Code, choose `…` → **Install from VSIX…**, and pick the file.
+
 ## Settings
 
 | Setting | Default | |
@@ -72,6 +84,14 @@ Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `
 
 ## Developing the extension
 
+The F5 launch config and the tests expect the PHI repository beside this one:
+
+```
+<parent>/
+├── Libraries/PHI          the PHI repository
+└── Projects/PHI-VSCODE    this repository
+```
+
 ```
 npm install
 npm test                    # grammar, scanner, resolver and compiler tests (reads ../../Libraries/PHI)
@@ -80,5 +100,7 @@ npm run sync-builtins       # regenerate the built-in function table from the co
 npm run package             # make phi-language-<version>.vsix
 ```
 
-Press F5 in this folder to start an Extension Development Host with the extension loaded.
+Press F5 in this folder to start an Extension Development Host with the extension loaded. F5 compiles
+the extension first, so run `npm install` beforehand (`out/` isn't in git). The host opens the PHI
+repository as its folder, so the extension activates and finds the compiler there.
 `PHI_ROOT` points the tests at a PHI repository somewhere else.
