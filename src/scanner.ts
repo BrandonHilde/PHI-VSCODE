@@ -261,6 +261,8 @@ export function scan(text: string): ScanResult {
     const statementStart = (i: number) => i === 0 || at(i).startsLine || statementEnders.has(at(i - 1).text);
 
     const currentClass = () => [...frames].reverse().find(f => f.kind === 'class')?.symbol;
+    /** the class or struct a method header belongs to */
+    const currentOwner = () => [...frames].reverse().find(f => f.kind === 'class' || f.kind === 'struct')?.symbol;
     const currentMethod = () => {
         const top = frames[frames.length - 1];
         return top?.kind === 'method' ? top.symbol : undefined;
@@ -388,7 +390,7 @@ export function scan(text: string): ScanResult {
                 name, kind, start: open.start, end: at(close).end,
                 nameStart: nameToken.start, nameEnd, signature: '', children: [],
             };
-            add(s, currentClass());
+            add(s, currentOwner());
             return s;
         }
     }
@@ -490,15 +492,8 @@ export function scan(text: string): ScanResult {
             continue;
         }
 
-        // struct fields
-        if (top?.kind === 'struct') {
-            const next = tryDeclaration(i, 'field', top.symbol);
-            if (next !== undefined) i = next;
-            continue;
-        }
-
-        // method headers and [end]
-        if (t.text === '[' && t.kind === 'punct' && statementStart(i) && (top?.kind === 'class' || top?.kind === 'method')) {
+        // method headers and [end], in a class or a struct
+        if (t.text === '[' && t.kind === 'punct' && statementStart(i) && (top?.kind === 'class' || top?.kind === 'struct' || top?.kind === 'method')) {
             if (is(i + 1, 'end')) {
                 let close = i + 1;
                 while (at(close).kind !== 'eof' && at(close).text !== ']') close++;
@@ -507,6 +502,13 @@ export function scan(text: string): ScanResult {
             } else {
                 i = openMethod(i);
             }
+            continue;
+        }
+
+        // struct fields
+        if (top?.kind === 'struct') {
+            const next = tryDeclaration(i, 'field', top.symbol);
+            if (next !== undefined) i = next;
             continue;
         }
 

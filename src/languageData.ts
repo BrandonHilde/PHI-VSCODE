@@ -66,6 +66,16 @@ export const keywords: Record<string, KeywordInfo> = {
     above: { syntax: 'if lives above 0', description: 'Word form of `>`.' },
     atmost: { syntax: 'if score atmost 10', description: 'Word form of `<=`.' },
     atleast: { syntax: 'if score atleast best', description: 'Word form of `>=`.' },
+    has: { syntax: 'has', description: 'Reserved. **Not supported yet.**' },
+    break: { syntax: 'while true\n    if done break;\n;;', description: 'Leaves the innermost `while` loop.' },
+    continue: { syntax: 'while int i: 0; i < n; i++;\n    if i is skip continue;\n;;', description: 'Skips to the next turn of the innermost `while` loop (its step still runs).' },
+    return: { syntax: 'return;\nreturn value;', description: 'Leaves the method early, with a value in a method that has one.' },
+    sizeof: { syntax: 'int bytes: sizeof Entry;', description: 'The size in bytes of a type, struct or variable. For a `str` variable, its room plus the ending zero.' },
+    as: { syntax: 'w:0.data as ptr<Note>\ncount as u8', description: 'Uses a value as another type: a pointer as another kind of pointer, or a number as a smaller type.' },
+    takes: { syntax: 'node.next takes head;', description: 'Hands an object over without copying: frees what the left side held, gives it the right side\'s memory, and leaves the right side `empty`.' },
+    empty: { syntax: 'new Node next: empty;\nwhile walk.next is not empty', description: 'No object: what a `new` variable or field holds before one is assigned.' },
+    at: { syntax: 'new Cell corner at 0xB8000;', description: 'An object over memory that already exists (device memory, a table the BIOS left). Nothing is allocated or freed.' },
+    method: { syntax: 'method<int int: int> handler;', description: 'A method as a value: a variable, field or array that holds a method to call later.' },
     true: { syntax: 'true', description: 'Stored as 1.' },
     false: { syntax: 'false', description: 'Stored as 0.' },
     isr: { syntax: '[isr Name]\n    ...\n    call OS.EndOfInterrupt: 1;\n[end]', description: 'An interrupt handler: saves and restores every register and returns with `iret`. No parameters, no return value, and it can\'t be called with `call`. Install it with `call OS.SetInterruptHandler: vector addr Name;`.' },
@@ -99,10 +109,12 @@ export const standardLibrary: Record<string, string> = {
 
 export const primitiveTypeNames = Object.keys(primitiveTypes).filter(t => t !== 'ptr');
 
-/** Words that can never be a variable or method name. */
+/** Words that can never be a variable or method name (the compiler's Parser.ReservedWords). */
 export const reservedWords = new Set<string>([
-    ...Object.keys(primitiveTypes),
+    ...Object.keys(primitiveTypes), 'method',
     'phi', 'struct', 'asm', 'arm', 'use', 'const', 'if', 'elif', 'else', 'while', 'unsafe', 'call',
+    'break', 'continue', 'return',
     'log', 'debug', 'ask', 'exit', 'out', 'outw', 'outd', 'in', 'inw', 'ind', 'new', 'free', 'addr',
+    'sizeof', 'as', 'takes', 'empty', 'at',
     'is', 'not', 'and', 'or', 'below', 'above', 'atmost', 'atleast', 'true', 'false', 'has', 'isr', 'end',
 ]);

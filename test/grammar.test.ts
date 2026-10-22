@@ -128,6 +128,19 @@ test('control flow and ;; block ends', async () => {
     hasScope(t, '++', 'keyword.operator.assignment.compound');
 });
 
+test('early exits, objects and casts', async () => {
+    const t = await tokenize("if done return;\nif skip continue;\nbreak;\nnode.next takes head;\nwhile walk is not empty\n;;\nnew Cell corner at 0xB8000;\nint n: sizeof Entry;\nptr<Note> p: raw as ptr<Note>;\nmethod<int> on_key;");
+    hasScope(t, 'return', 'keyword.control.flow', 0);
+    hasScope(t, 'continue', 'keyword.control.flow', 1);
+    hasScope(t, 'break', 'keyword.control.flow', 2);
+    hasScope(t, 'takes', 'keyword.operator.memory', 3);
+    hasScope(t, 'empty', 'constant.language.empty', 4);
+    hasScope(t, 'at', 'keyword.operator.memory', 6);
+    hasScope(t, 'sizeof', 'keyword.operator.memory', 7);
+    hasScope(t, 'as', 'keyword.operator.cast', 8);
+    hasScope(t, 'method', 'storage.type.method', 9);
+});
+
 test('methods: headers, parameters, [end], isr and events', async () => {
     const t = await tokenize("[Add: int x: 0; int y: 0;]\n[end: x + y]\n[isr Keyboard]\n[end]\n[OS.TimerEvent]\n[end]\n[Counter]\n[end]");
     hasScope(t, 'Add', 'entity.name.function');

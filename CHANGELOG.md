@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1
+
+- Reserved words match the compiler: `at`, `break`, `continue`, `return`, `sizeof`, `as`,
+  `takes`, `empty` and `method` are keywords, with hovers and highlighting
+- `\xNN` escapes in strings highlight as escapes
+- Methods declared inside a struct are found (outline, symbols and folding)
+
 ## 0.1.0
 
 First release.

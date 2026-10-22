@@ -39,7 +39,7 @@
       "end": "'(?![\\p{L}\\p{N}])",
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.phi" } },
       "patterns": [
-        { "name": "constant.character.escape.phi", "match": "\\\\[rnt0\\\\']" },
+        { "name": "constant.character.escape.phi", "match": "\\\\(?:[rnt0\\\\']|x[0-9A-Fa-f]{2})" },
         { "name": "invalid.illegal.unknown-escape.phi", "match": "\\\\." }
       ]
     },
@@ -318,6 +318,7 @@
         { "name": "keyword.control.loop.phi", "match": "\\bwhile\\b" },
         { "name": "keyword.control.unsafe.phi", "match": "\\bunsafe\\b" },
         { "name": "keyword.control.flow.exit.phi", "match": "\\bexit\\b" },
+        { "name": "keyword.control.flow.phi", "match": "\\b(?:return|break|continue)\\b" },
         { "name": "keyword.control.block-end.phi", "match": ";;" }
       ]
     },
@@ -361,7 +362,10 @@
       "patterns": [
         { "name": "keyword.other.io.phi", "match": "\\b(?:log|debug|ask)\\b" },
         { "name": "keyword.other.port.phi", "match": "\\b(?:out|outw|outd)\\b" },
-        { "name": "keyword.operator.memory.phi", "match": "\\b(?:new|free|addr)\\b" },
+        { "name": "keyword.operator.memory.phi", "match": "\\b(?:new|free|addr|sizeof|takes|at)\\b" },
+        { "name": "keyword.operator.cast.phi", "match": "\\bas\\b" },
+        { "name": "constant.language.empty.phi", "match": "\\bempty\\b" },
+        { "name": "storage.type.method.phi", "match": "\\bmethod\\b" },
         { "name": "keyword.operator.port.phi", "match": "\\b(?:in|inw|ind)\\b" },
         { "name": "keyword.operator.logical.phi", "match": "\\b(?:and|or|not)\\b" },
         { "name": "keyword.operator.comparison.phi", "match": "\\b(?:is|below|above|atmost|atleast|has)\\b" },
