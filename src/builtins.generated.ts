@@ -130,6 +130,15 @@ export const builtinFunctions: BuiltinFunction[] = [
         "description": "32-bit: wait"
     },
     {
+        "name": "OS.Now",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "32-bit: the date and time now, as seconds since the start of 1970 (UTC)"
+    },
+    {
         "name": "OS.SetupMouse",
         "aliases": [],
         "parameters": [],
@@ -265,6 +274,103 @@ export const builtinFunctions: BuiltinFunction[] = [
         "description": "give the CPU to another task"
     },
     {
+        "name": "OS.Idle",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": false,
+        "onlyIn": null,
+        "description": "kernel: give the CPU to the programs, and if none of them can run, wait for the next interrupt instead of coming straight back"
+    },
+    {
+        "name": "Float.Sqrt",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "the square root"
+    },
+    {
+        "name": "Float.Abs",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "without its sign"
+    },
+    {
+        "name": "Float.Sin",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "the sine of x radians"
+    },
+    {
+        "name": "Float.Cos",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "the cosine of x radians"
+    },
+    {
+        "name": "Float.Round",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "the nearest whole number (halves to even)"
+    },
+    {
+        "name": "Float.Floor",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "the whole number at or below"
+    },
+    {
+        "name": "Float.Ceil",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "the whole number at or above"
+    },
+    {
+        "name": "Float.Trunc",
+        "aliases": [],
+        "parameters": [
+            "x"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "the whole number toward zero"
+    },
+    {
         "name": "OS.CurrentTask",
         "aliases": [],
         "parameters": [],
@@ -341,6 +447,463 @@ export const builtinFunctions: BuiltinFunction[] = [
         "returns": false,
         "onlyIn": null,
         "description": "kernel: let a finished task's slot be reused"
+    },
+    {
+        "name": "OS.SetTaskHeapEnd",
+        "aliases": [],
+        "parameters": [
+            "task",
+            "end"
+        ],
+        "textParameters": [],
+        "returns": false,
+        "onlyIn": null,
+        "description": "kernel: where a program's heap (from 0x40400000) ends, for every task of it, so text it passes from there is accepted"
+    },
+    {
+        "name": "OS.CreateUserThread",
+        "aliases": [],
+        "parameters": [
+            "program",
+            "entry",
+            "userStack",
+            "kernelStack",
+            "stackBottom",
+            "stackTop"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "kernel: start a thread of a program, in its memory (proc.process does this for you)"
+    },
+    {
+        "name": "OS.TaskProcess",
+        "aliases": [],
+        "parameters": [
+            "task"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "kernel: the program a task belongs to (its first task's number; 0: the kernel's)"
+    },
+    {
+        "name": "OS.CurrentProcess",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "kernel: the program the current task belongs to (0: the kernel)"
+    },
+    {
+        "name": "OS.ThreadStart",
+        "aliases": [],
+        "parameters": [
+            "method",
+            "value",
+            "stackBottom",
+            "stackTop"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: run method: value as a thread, on the stack from stackBottom to stackTop; its number, or -1 (user.threads does this)"
+    },
+    {
+        "name": "OS.ThreadDone",
+        "aliases": [],
+        "parameters": [
+            "thread"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: 1 once a thread of this program has finished, 0 while it runs, -1 if it isn't one"
+    },
+    {
+        "name": "OS.ThreadClone",
+        "aliases": [],
+        "parameters": [
+            "frame",
+            "id"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "a Linux program: clone, which lib/phi/host/threads_linux.phi can't make itself (the new thread comes back on another stack)"
+    },
+    {
+        "name": "OS.ThreadEntry",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "a Windows program: where a new thread starts, for CreateThread (lib/phi/host/threads_windows.phi)"
+    },
+    {
+        "name": "OS.ThreadFree",
+        "aliases": [],
+        "parameters": [
+            "thread"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: give a finished thread's number back; 1, or 0 if it hasn't finished"
+    },
+    {
+        "name": "OS.SurfaceOpen",
+        "aliases": [],
+        "parameters": [
+            "width",
+            "height"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: a window of width x height pixels (gui.surfaces in the kernel); 1, or 0 (gui.app does this)"
+    },
+    {
+        "name": "OS.SurfacePresent",
+        "aliases": [],
+        "parameters": [
+            "pixels"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: show width x height pixels from its memory in its window; 1, or 0"
+    },
+    {
+        "name": "OS.NextEvent",
+        "aliases": [],
+        "parameters": [
+            "event"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: the oldest event for its window, into a GuiEvent (gui.events); 1, or 0 if there's none"
+    },
+    {
+        "name": "OS.CopyFont",
+        "aliases": [],
+        "parameters": [
+            "glyphs"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: copy the kernel's 8x16 font (4096 bytes) into glyphs; 1, or 0 if it has none"
+    },
+    {
+        "name": "OS.SetWindowTitle",
+        "aliases": [],
+        "parameters": [
+            "title"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: name its window (gui.app's App.SetTitle); 1"
+    },
+    {
+        "name": "OS.OpenWindow",
+        "aliases": [],
+        "parameters": [
+            "path",
+            "arguments"
+        ],
+        "textParameters": [
+            0,
+            1
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: start a program with a command line, in a window of its own (gui.app's App.OpenWindow); its process number, or -1"
+    },
+    {
+        "name": "OS.WindowFocused",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: 1 if its window is in front (gui.app's App.Focused)"
+    },
+    {
+        "name": "OS.SetResizable",
+        "aliases": [],
+        "parameters": [
+            "resizable"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: 0 if its window can't be resized, 1 if it can (gui.app's App.SetResizable); 1"
+    },
+    {
+        "name": "OS.NetAddress",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: this machine's address, or 0 if the kernel has no network (net.sockets does this)"
+    },
+    {
+        "name": "OS.UdpOpen",
+        "aliases": [],
+        "parameters": [
+            "port",
+            "queue"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: a UDP socket on port (0: any free one), keeping up to queue datagrams; -1 if it can't (net.sockets does this)"
+    },
+    {
+        "name": "OS.UdpClose",
+        "aliases": [],
+        "parameters": [
+            "socket"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: close a UDP socket; 1, or 0 if it isn't this program's (net.sockets does this)"
+    },
+    {
+        "name": "OS.UdpReceive",
+        "aliases": [],
+        "parameters": [
+            "socket",
+            "datagram"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: the oldest datagram for the socket, into a UdpDatagram; 1, or 0 if none is waiting (net.sockets does this)"
+    },
+    {
+        "name": "OS.UdpSend",
+        "aliases": [],
+        "parameters": [
+            "socketAndPort",
+            "to",
+            "data",
+            "length"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: send a datagram from a socket (its number, plus the port times 65536); 1 if it went (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpBegin",
+        "aliases": [],
+        "parameters": [
+            "to",
+            "port"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: start a TCP connection; its number (ask OS.TcpState), or -1 (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpState",
+        "aliases": [],
+        "parameters": [
+            "connection"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: 1 once a connection is open, 0 while it's connecting, -1 if it failed (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpSend",
+        "aliases": [],
+        "parameters": [
+            "connection",
+            "data",
+            "length"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: put bytes in a connection's send buffer; how many it took, or -1 (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpTake",
+        "aliases": [],
+        "parameters": [
+            "connection",
+            "buffer",
+            "max"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: what has arrived, up to max bytes: the bytes, 0 if none yet, -2 once closed and all read, -1 if broken (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpClose",
+        "aliases": [],
+        "parameters": [
+            "connection"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: close a connection; 1 (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpListen",
+        "aliases": [],
+        "parameters": [
+            "port",
+            "backlog"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: take connections on a port; a listener, or -1 (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpAccept",
+        "aliases": [],
+        "parameters": [
+            "listener"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: a connection that has come in, or -1 if none is waiting (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpWaiting",
+        "aliases": [],
+        "parameters": [
+            "connection"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: bytes to read; -1 once it's closed or reset (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpAddress",
+        "aliases": [],
+        "parameters": [
+            "connection"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: the address of the other end (net.sockets does this)"
+    },
+    {
+        "name": "OS.TcpStopListening",
+        "aliases": [],
+        "parameters": [
+            "listener"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: stop taking connections; 1, or 0 if it isn't this program's (net.sockets does this)"
+    },
+    {
+        "name": "OS.MailOpen",
+        "aliases": [],
+        "parameters": [
+            "name",
+            "size",
+            "capacity"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: a mailbox of this program's for records of size bytes; its number, or -1 (user.mail does this)"
+    },
+    {
+        "name": "OS.MailFind",
+        "aliases": [],
+        "parameters": [
+            "name"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: the number of the mailbox with this name, or -1 (user.mail does this)"
+    },
+    {
+        "name": "OS.MailSend",
+        "aliases": [],
+        "parameters": [
+            "box",
+            "record"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: a record to a mailbox; 1 if it went in (user.mail does this)"
+    },
+    {
+        "name": "OS.MailReceive",
+        "aliases": [],
+        "parameters": [
+            "box",
+            "into"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: the oldest record in one of its mailboxes: who sent it plus one, or 0 if none is waiting (user.mail does this)"
+    },
+    {
+        "name": "OS.MailWaiting",
+        "aliases": [],
+        "parameters": [
+            "box"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: how many records are waiting in a mailbox, or -1 (user.mail does this)"
+    },
+    {
+        "name": "OS.MailClose",
+        "aliases": [],
+        "parameters": [
+            "box"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: close one of its mailboxes; 1, or 0 if it isn't its own (user.mail does this)"
+    },
+    {
+        "name": "OS.Grow",
+        "aliases": [],
+        "parameters": [
+            "bytes"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: more memory for its heap, right after what it has; where it starts, or 0 (memory.heap does this for new)"
     },
     {
         "name": "OS.SetSyscallHandler",
@@ -442,6 +1005,21 @@ export const builtinFunctions: BuiltinFunction[] = [
         "description": "program: create or replace a file; 1 if written"
     },
     {
+        "name": "OS.AppendFile",
+        "aliases": [],
+        "parameters": [
+            "path",
+            "data",
+            "length"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: add to the end of a file (creating it); 1 if written"
+    },
+    {
         "name": "OS.DeleteFile",
         "aliases": [],
         "parameters": [
@@ -479,6 +1057,130 @@ export const builtinFunctions: BuiltinFunction[] = [
         "returns": true,
         "onlyIn": null,
         "description": "program: a file's size, or -1"
+    },
+    {
+        "name": "OS.ListFolder",
+        "aliases": [],
+        "parameters": [
+            "path",
+            "into",
+            "max"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: a folder's entries, as FileInfo (use fs.fileinfo), into up to max of them; how many, or -1"
+    },
+    {
+        "name": "OS.MakeFolder",
+        "aliases": [],
+        "parameters": [
+            "path"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: make a folder; 1 if made"
+    },
+    {
+        "name": "OS.Rename",
+        "aliases": [],
+        "parameters": [
+            "from",
+            "to"
+        ],
+        "textParameters": [
+            0,
+            1
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: rename a file or folder, or move it to another folder; 1 if done"
+    },
+    {
+        "name": "OS.DeleteFolder",
+        "aliases": [],
+        "parameters": [
+            "path"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: delete an empty folder; 1 if deleted"
+    },
+    {
+        "name": "OS.ReadFileAt",
+        "aliases": [],
+        "parameters": [
+            "path",
+            "offset",
+            "buffer",
+            "max"
+        ],
+        "textParameters": [
+            0
+        ],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: read part of a file, from offset on, into buffer; bytes read, or -1"
+    },
+    {
+        "name": "OS.SoundWrite",
+        "aliases": [],
+        "parameters": [
+            "data",
+            "length"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: give the sound card 16-bit stereo sound; the bytes it took (0 while it's full), or -1 if there's no card"
+    },
+    {
+        "name": "OS.SoundRate",
+        "aliases": [],
+        "parameters": [
+            "hz"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: set the frames a second the sound card plays; the rate it got, or -1 if there's no card"
+    },
+    {
+        "name": "OS.SoundQueued",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: bytes of sound still to play, or -1 if there's no card"
+    },
+    {
+        "name": "OS.SoundStop",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: stop the sound at once, dropping what hasn't played"
+    },
+    {
+        "name": "OS.SoundVolume",
+        "aliases": [],
+        "parameters": [
+            "percent"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: set the sound card's volume, 0 to 100"
     },
     {
         "name": "OS.TaskName",

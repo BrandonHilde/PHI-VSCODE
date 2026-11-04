@@ -8,8 +8,9 @@ Language support for [PHI](https://github.com/BrandonHilde/PHI), the language fo
   a block comment, `'hasn't'`-style strings, `;;` block ends, `[Method: ...]` / `[end: value]`,
   and x86 highlighting inside `asm.Name { }` blocks, including `{variable}` and `{CONSTANT}`.
   `` ```phi `` code blocks in Markdown are highlighted too.
-- **Errors as you work**: `phi check` runs when you open or save a file, and its errors appear in
-  the Problems panel and as squiggles. Set `phi.validate` to `onType` to check while typing.
+- **Errors as you type**, from `phi lsp`, the compiler's language server, in the Problems panel and
+  as squiggles. Unsaved text counts, in the file and in the modules you have open. A module is
+  checked inside a program around it, or one that uses it, and only its own errors are shown.
 - **Hovers** for your methods, variables, structs and constants (with the comments above them),
   every built-in `OS.` / `Bootloader.` function, `Colors`, keywords and types.
 - **Go to definition**, **find references**, **highlight** and **rename** across files, following
@@ -46,7 +47,7 @@ Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `
    npm run package
    ```
 
-3. Install the package with `code --install-extension phi-language-0.1.0.vsix`, or open the Extensions view in VS Code, choose `…` → **Install from VSIX…**, and pick the file.
+3. Install the package with `code --install-extension phi-language-0.2.0.vsix`, or open the Extensions view in VS Code, choose `…` → **Install from VSIX…**, and pick the file.
 
 ## Settings
 
@@ -54,15 +55,16 @@ Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `
 |---|---|---|
 | `phi.compilerPath` | | Path to `phi` / `phi.exe`. Empty: `PATH`, then `Compiler/Phi.Cli/bin/*/net8.0/` in the workspace or its parents. |
 | `phi.libraryPath` | | Path to `lib/phi`, for `use` navigation. Empty: found next to the compiler. |
-| `phi.validate` | `onSave` | `onSave`, `onType` (checks a hidden copy, `.NAME.phicheck.phi`, next to the file so `use` paths resolve) or `off`. |
-| `phi.validateDelay` | `600` | Milliseconds to wait after typing before checking (`onType`). |
+| `phi.validate` | `onType` | `onType`, or `off` for no compiler errors. (`onSave` differs only with a `phi` too old to have `phi lsp`, when it runs `phi check` on open and save.) |
+| `phi.validateDelay` | `600` | Only with a `phi` too old to have `phi lsp`: milliseconds to wait after typing before running `phi check`. |
 | `phi.nasmPath`, `phi.qemuPath` | | Passed to the compiler as `PHI_NASM` and `PHI_QEMU`. |
 
 ## Commands
 
 | Command | |
 |---|---|
-| PHI: Check File | Run `phi check` and show the result |
+| PHI: Check File | Say how many errors the file has, and open the Problems panel if there are any |
+| PHI: Restart Language Server | Start `phi lsp` again (it does this by itself when `phi` is rebuilt) |
 | PHI: Build | `phi build` the current file |
 | PHI: Build and Run in QEMU (F5) | `phi run`: serial output appears in the terminal |
 | PHI: Build and Run in QEMU (wait for gdb) | `phi run --debug`: QEMU waits for gdb on `localhost:1234` |

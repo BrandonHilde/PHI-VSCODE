@@ -2,16 +2,19 @@ import * as vscode from 'vscode';
 import { registerCommands } from './commands';
 import { PhiDiagnostics } from './diagnostics';
 import { registerFeatures } from './features';
+import { PhiServer } from './languageServer';
 import { PhiWorkspace } from './workspace';
 
 export function activate(context: vscode.ExtensionContext) {
     const output = vscode.window.createOutputChannel('PHI');
     const ws = new PhiWorkspace(output);
-    const diagnostics = new PhiDiagnostics(ws, output, context.globalState);
-    context.subscriptions.push(output, ws, diagnostics);
+    const server = new PhiServer(ws, output);
+    const diagnostics = new PhiDiagnostics(ws, output, context.globalState, server);
+    context.subscriptions.push(output, ws, server, diagnostics);
 
-    registerFeatures(context, ws);
+    registerFeatures(context, ws, server);
     registerCommands(context, ws, diagnostics);
+    context.subscriptions.push(vscode.commands.registerCommand('phi.restartServer', () => server.restart()));
 
     // the status bar shows which compiler is in use while a .phi file is open
     const status = vscode.window.createStatusBarItem('phi.status', vscode.StatusBarAlignment.Right, 100);
@@ -48,7 +51,9 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     updateStatus();
-    diagnostics.checkAllOpen();
+    // (until it's known whether there's a server: errors are shown once either has answered)
+    void server.start();
+    return { serverRunning: () => server.running };
 }
 
 export function deactivate() {

@@ -3,6 +3,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { BuiltinFunction, builtinColors, builtinFunctions, builtinHooks } from './builtins.generated';
+import { PhiServer } from './languageServer';
 import { classBases, keywords, primitiveTypes, standardLibrary } from './languageData';
 import { FileScan, Resolution, Target, findBuiltin, isMember, resolveAt, sameTarget, structOf, visibleLocals } from './resolver';
 import { PhiSymbol, ScanResult, callContextAt, isInCommentOrString, lineOf, symbolAt } from './scanner';
@@ -10,8 +11,8 @@ import { PhiWorkspace, scanResultOf } from './workspace';
 
 const selector: vscode.DocumentSelector = [{ language: 'phi' }];
 
-export function registerFeatures(context: vscode.ExtensionContext, ws: PhiWorkspace) {
-    const features = new Features(ws);
+export function registerFeatures(context: vscode.ExtensionContext, ws: PhiWorkspace, server: PhiServer) {
+    const features = new Features(ws, server);
     context.subscriptions.push(
         vscode.languages.registerHoverProvider(selector, features),
         vscode.languages.registerDefinitionProvider(selector, features),
@@ -144,7 +145,7 @@ class Features implements
     vscode.RenameProvider, vscode.DocumentSymbolProvider, vscode.WorkspaceSymbolProvider, vscode.FoldingRangeProvider,
     vscode.CompletionItemProvider, vscode.SignatureHelpProvider {
 
-    constructor(private readonly ws: PhiWorkspace) {}
+    constructor(private readonly ws: PhiWorkspace, private readonly server: PhiServer) {}
 
     private current(doc: vscode.TextDocument): FileScan {
         return this.ws.scanDocument(doc);
@@ -218,7 +219,11 @@ class Features implements
 
     // ---- definitions and references
 
-    async provideDefinition(doc: vscode.TextDocument, position: vscode.Position): Promise<vscode.Definition | vscode.LocationLink[] | undefined> {
+    async provideDefinition(doc: vscode.TextDocument, position: vscode.Position, token?: vscode.CancellationToken): Promise<vscode.Definition | vscode.LocationLink[] | undefined> {
+        // the compiler knows; what it doesn't answer for (a {name} in an asm block) is the scanner's
+        const known = await this.server.definition(doc, position, token);
+        if (known && (!Array.isArray(known) || known.length)) return known;
+
         const scan = this.current(doc);
         const offset = doc.offsetAt(position);
         if (isInCommentOrString(scan.result, offset)) return undefined;
@@ -354,7 +359,43 @@ class Features implements
 
     // ---- completion
 
-    async provideCompletionItems(doc: vscode.TextDocument, position: vscode.Position, _token: vscode.CancellationToken, context: vscode.CompletionContext): Promise<vscode.CompletionItem[] | vscode.CompletionList | undefined> {
+    /**
+     * The compiler says which names can go here, and the scanner knows how to describe them. The
+     * words it has lists of itself (use paths, class bases, method headers, OS. and Colors., with
+     * their documents and swatches) are its own to answer.
+     */
+    async provideCompletionItems(doc: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, context: vscode.CompletionContext): Promise<vscode.CompletionItem[] | vscode.CompletionList | undefined> {
+        const scanned = await this.scannedCompletions(doc, position, context);
+        const before = doc.lineAt(position.line).text.slice(0, position.character);
+        if (/^\s*use\s|\bphi\.\w+\s*:\s*\w*$|^\s*\[\s*\w*$|\b(?:OS|Bootloader|Colors)\s*\.\s*\w*$/.test(before)) return scanned;
+        // (a space only opens the list after `call`, and the scanner decides that)
+        if (context.triggerCharacter === ' ' && !scanned) return undefined;
+
+        const known = await this.server.completions(doc, position, context, token);
+        const described = Array.isArray(scanned) ? scanned : scanned?.items ?? [];
+        if (!known.length) return this.server.running && doc.uri.scheme === 'file' && /\.\s*\w*$/.test(before) ? [] : scanned;
+
+        const labelOf = (i: vscode.CompletionItem) => (typeof i.label === 'string' ? i.label : i.label.label);
+        const byLabel = new Map(described.map(i => [labelOf(i), i]));
+        const merged = known.map(item => {
+            const more = byLabel.get(labelOf(item));
+            if (more) {
+                item.documentation = more.documentation ?? item.documentation;
+                item.sortText = more.sortText ?? item.sortText;
+                item.insertText = more.insertText ?? item.insertText;
+                item.command = more.command ?? item.command;
+                item.label = more.label;
+            }
+            return item;
+        });
+        // after a dot it's only what the compiler says that thing has; elsewhere a name can also
+        // be found in another class, which the scanner lists
+        if (/\.\s*\w*$/.test(before)) return merged;
+        const said = new Set(known.map(labelOf));
+        return [...merged, ...described.filter(i => !said.has(labelOf(i)))];
+    }
+
+    private async scannedCompletions(doc: vscode.TextDocument, position: vscode.Position, context: vscode.CompletionContext): Promise<vscode.CompletionItem[] | vscode.CompletionList | undefined> {
         const scan = this.current(doc);
         const offset = doc.offsetAt(position);
         if (isInCommentOrString(scan.result, offset)) return undefined;

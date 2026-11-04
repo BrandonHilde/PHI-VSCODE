@@ -2,6 +2,8 @@
 // language feature through VS Code's own commands, the way the editor would call them.
 
 import * as assert from 'assert';
+import * as cp from 'child_process';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -33,6 +35,11 @@ function at(doc: vscode.TextDocument, needle: string, delta = 0, nth = 0): vscod
     return doc.positionAt(index + delta);
 }
 
+/** Where a definition is: the server answers with locations, the scanner with links. */
+function targetOf(d: vscode.Location | vscode.LocationLink): { uri: vscode.Uri; range: vscode.Range } {
+    return 'targetUri' in d ? { uri: d.targetUri, range: d.targetSelectionRange ?? d.targetRange } : d;
+}
+
 function hoverText(hovers: vscode.Hover[]): string {
     return hovers.flatMap(h => h.contents).map(c => (typeof c === 'string' ? c : 'value' in c ? c.value : '')).join('\n');
 }
@@ -52,8 +59,11 @@ export async function run(): Promise<void> {
     assert.ok(ext, 'extension not loaded');
 
     const kernel = await open('samples/kernel.phi');
-    await ext!.activate();
+    const api = await ext!.activate();
     assert.equal(kernel.languageId, 'phi');
+
+    // every check below is of the extension with the server, not of whichever answers first
+    await waitFor('the language server', () => (api.serverRunning() ? true : undefined), 30000);
 
     await step('hover on a library method shows its signature', async () => {
         const hovers = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', kernel.uri, at(kernel, 'Vga.Print', 5));
@@ -72,19 +82,19 @@ export async function run(): Promise<void> {
     await step('go to definition: Vga.Clear opens the driver', async () => {
         const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeDefinitionProvider', kernel.uri, at(kernel, 'Vga.Clear', 5));
         assert.ok(defs.length >= 1);
-        const uri = 'targetUri' in defs[0] ? defs[0].targetUri : defs[0].uri;
-        assert.match(uri.fsPath.replace(/\\/g, '/'), /lib\/phi\/drivers\/vga_text\.phi$/);
+        assert.match(targetOf(defs[0]).uri.fsPath.replace(/\\/g, '/'), /lib\/phi\/drivers\/vga_text\.phi$/);
     });
 
     await step('go to definition: use path opens the file', async () => {
-        const defs = await vscode.commands.executeCommand<vscode.LocationLink[]>('vscode.executeDefinitionProvider', kernel.uri, at(kernel, 'boot.info', 6));
-        assert.match(defs[0].targetUri.fsPath.replace(/\\/g, '/'), /lib\/phi\/boot\/info\.phi$/);
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeDefinitionProvider', kernel.uri, at(kernel, 'boot.info', 6));
+        assert.match(targetOf(defs[0]).uri.fsPath.replace(/\\/g, '/'), /lib\/phi\/boot\/info\.phi$/);
     });
 
     await step('go to definition: struct field through a pointer (r:0.base)', async () => {
-        const defs = await vscode.commands.executeCommand<vscode.LocationLink[]>('vscode.executeDefinitionProvider', kernel.uri, at(kernel, 'r:0.base', 5));
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeDefinitionProvider', kernel.uri, at(kernel, 'r:0.base', 5));
         assert.ok(defs.length >= 1, 'no definition');
-        const text = (await vscode.workspace.openTextDocument(defs[0].targetUri)).getText(defs[0].targetSelectionRange);
+        const target = targetOf(defs[0]);
+        const text = (await vscode.workspace.openTextDocument(target.uri)).getText(target.range);
         assert.equal(text, 'base');
     });
 
@@ -196,32 +206,95 @@ export async function run(): Promise<void> {
         assert.ok(diags.some(d => /can't find support\/missing_file\.phi/.test(d.message)));
     });
 
-    await step('checking while typing uses a hidden copy and cleans it up', async () => {
-        const config = vscode.workspace.getConfiguration('phi');
-        await config.update('validate', 'onType', vscode.ConfigurationTarget.Global);
-        await config.update('validateDelay', 200, vscode.ConfigurationTarget.Global);
-        try {
-            const doc = await open('tests/hello.phi');
-            const edit = new vscode.WorkspaceEdit();
-            edit.insert(doc.uri, new vscode.Position(4, 0), '\tint : 5;\n');
-            await vscode.workspace.applyEdit(edit);
-            assert.ok(doc.isDirty);
-            const diags = await waitFor('on-type diagnostics', () => {
-                const d = vscode.languages.getDiagnostics(doc.uri);
-                return d.length ? d : undefined;
-            });
-            assert.equal(diags[0].range.start.line, 4);
-            assert.match(diags[0].message, /expected a variable name/);
+    await step('errors come and go while typing, with no hidden copy', async () => {
+        const doc = await open('tests/hello.phi');
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(doc.uri, new vscode.Position(4, 0), '\tint : 5;\n');
+        await vscode.workspace.applyEdit(edit);
+        assert.ok(doc.isDirty);
+        const diags = await waitFor('on-type diagnostics', () => {
+            const d = vscode.languages.getDiagnostics(doc.uri);
+            return d.length ? d : undefined;
+        });
+        assert.equal(diags[0].range.start.line, 4);
+        assert.match(diags[0].message, /expected a variable name/);
 
-            await vscode.commands.executeCommand('workbench.action.files.revert');
-            await waitFor('diagnostics to clear', () => (vscode.languages.getDiagnostics(doc.uri).length === 0 ? true : undefined));
-            const fs = await import('fs');
-            const leftovers = fs.readdirSync(path.join(root, 'tests')).filter(f => f.includes('.phicheck.'));
-            assert.deepEqual(leftovers, []);
-        } finally {
-            await config.update('validate', undefined, vscode.ConfigurationTarget.Global);
-            await config.update('validateDelay', undefined, vscode.ConfigurationTarget.Global);
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+        await waitFor('diagnostics to clear', () => (vscode.languages.getDiagnostics(doc.uri).length === 0 ? true : undefined));
+        const leftovers = fs.readdirSync(path.join(root, 'tests')).filter(f => f.includes('.phicheck.'));
+        assert.deepEqual(leftovers, []);
+    });
+
+    await step('errors say each mistake once', async () => {
+        const doc = await open('tests/hello.phi');
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(doc.uri, new vscode.Position(4, 0), '\tnothingCalledThis++ 1;\n');
+        await vscode.workspace.applyEdit(edit);
+        const diags = await waitFor('an error', () => {
+            const d = vscode.languages.getDiagnostics(doc.uri);
+            return d.length ? d : undefined;
+        });
+        assert.equal(diags.filter(d => /nothingCalledThis/.test(d.message)).length, 1, JSON.stringify(diags.map(d => d.message)));
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+        await waitFor('diagnostics to clear', () => (vscode.languages.getDiagnostics(doc.uri).length === 0 ? true : undefined));
+    });
+
+    await step('modules that only work in a program have no false errors', async () => {
+        for (const file of ['lib/phi/host/net.phi', 'lib/phi/net/tlslink.phi', 'lib/phi/drivers/vga_text.phi']) {
+            const doc = await open(file);
+            await new Promise(r => setTimeout(r, 1500));
+            const errors = vscode.languages.getDiagnostics(doc.uri).filter(d => d.severity === vscode.DiagnosticSeverity.Error);
+            assert.deepEqual(errors.map(d => d.message), [], file);
         }
+    });
+
+    await step('completion after a:i. is only what its struct has, each once, with its signature', async () => {
+        const doc = await open('tests/struct_methods.phi');
+        const edit = new vscode.WorkspaceEdit();
+        const pos = at(doc, 'phi.StructMethods');
+        const line = doc.lineAt(pos.line + 2).range.start;
+        const text = '\tCounter many[3];\n\tmany:1.\n';
+        edit.insert(doc.uri, line, text);
+        await vscode.workspace.applyEdit(edit);
+        const list = await vscode.commands.executeCommand<vscode.CompletionList>('vscode.executeCompletionItemProvider', doc.uri, line.translate(1, 8), '.');
+        const names = list.items.map(i => (typeof i.label === 'string' ? i.label : i.label.label));
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+        assert.ok(names.includes('count') && names.includes('AddTwice'), names.join(','));
+        assert.ok(!names.includes('w'), `another struct's field: ${names.join(',')}`);
+        assert.equal(new Set(names).size, names.length, `twice: ${names.join(',')}`);
+    });
+
+    await step('completion has what the scanner knows: documents, and Colors', async () => {
+        const list = await vscode.commands.executeCommand<vscode.CompletionList>('vscode.executeCompletionItemProvider', kernel.uri, at(kernel, 'Colors.White', 7), '.');
+        const white = list.items.find(i => (typeof i.label === 'string' ? i.label : i.label.label) === 'White');
+        assert.ok(white?.documentation, 'a swatch');
+        const words = await vscode.commands.executeCommand<vscode.CompletionList>('vscode.executeCompletionItemProvider', kernel.uri, at(kernel, 'call Vga.Clear;'));
+        const whileWord = words.items.find(i => i.label === 'while');
+        assert.ok(whileWord?.documentation, 'a keyword is described');
+        assert.equal(words.items.filter(i => i.label === 'while').length, 1);
+    });
+
+    await step('going to a definition sees what is not saved', async () => {
+        const doc = await open('tests/hello.phi');
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(doc.uri, new vscode.Position(4, 0), '\tint fresh: 1;\n\tfresh++ 1;\n');
+        await vscode.workspace.applyEdit(edit);
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeDefinitionProvider', doc.uri, new vscode.Position(5, 2));
+        await vscode.commands.executeCommand('workbench.action.files.revert');
+        assert.equal(defs.length, 1, 'one answer, not one from each');
+        assert.equal(targetOf(defs[0]).range.start.line, 4);
+    });
+
+    await step('phi can be rebuilt while the server runs, which then starts again', async () => {
+        // if the server were running from where phi is built, this would fail on Windows
+        cp.execSync('dotnet build Compiler/Phi.Cli --no-incremental -v q --nologo', { cwd: root, stdio: 'pipe', timeout: 120000 });
+        await new Promise(r => setTimeout(r, 3000));
+        const doc = await open('tests/hello.phi');
+        const edit = new vscode.WorkspaceEdit();
+        edit.insert(doc.uri, new vscode.Position(4, 0), '\tafterRebuild++ 1;\n');
+        await vscode.workspace.applyEdit(edit);
+        await waitFor('an error after starting again', () => (vscode.languages.getDiagnostics(doc.uri).some(d => /afterRebuild/.test(d.message)) ? true : undefined));
+        await vscode.commands.executeCommand('workbench.action.files.revert');
     });
 
     await step('show generated assembly builds and jumps to the line', async () => {

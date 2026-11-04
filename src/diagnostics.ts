@@ -1,8 +1,10 @@
-// Runs `phi check` and shows what it reports in the Problems panel.
+// The language server (languageServer.ts) shows errors as you type. This is for a phi too old to
+// have one: it runs `phi check` and shows what that reports in the Problems panel.
 
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { PhiServer } from './languageServer';
 import { CompilerDiagnostic, check, resolveDiagnosticPath } from './toolchain';
 import { PhiWorkspace } from './workspace';
 
@@ -18,8 +20,9 @@ export class PhiDiagnostics implements vscode.Disposable {
     private readonly disposables: vscode.Disposable[] = [];
     private warnedMissing = false;
 
-    constructor(private readonly ws: PhiWorkspace, private readonly output: vscode.OutputChannel, private readonly state: vscode.Memento) {
+    constructor(private readonly ws: PhiWorkspace, private readonly output: vscode.OutputChannel, private readonly state: vscode.Memento, private readonly server: PhiServer) {
         this.disposables.push(
+            server.onDidChangeRunning(() => this.serverChanged()),
             this.collection,
             vscode.workspace.onDidOpenTextDocument(doc => this.schedule(doc, 0)),
             vscode.workspace.onDidSaveTextDocument(doc => this.schedule(doc, 0)),
@@ -37,8 +40,19 @@ export class PhiDiagnostics implements vscode.Disposable {
         for (const d of this.disposables) d.dispose();
     }
 
+    private serverChanged() {
+        if (this.server.running) {
+            for (const t of this.timers.values()) clearTimeout(t);
+            this.timers.clear();
+            this.collection.clear();
+            this.byRoot.clear();
+        } else {
+            this.checkAllOpen();
+        }
+    }
+
     private mode(): Mode {
-        return vscode.workspace.getConfiguration('phi').get<Mode>('validate', 'onSave');
+        return vscode.workspace.getConfiguration('phi').get<Mode>('validate', 'onType');
     }
 
     private delay(): number {
@@ -46,6 +60,7 @@ export class PhiDiagnostics implements vscode.Disposable {
     }
 
     checkAllOpen() {
+        if (this.server.running) return;
         if (this.mode() === 'off') {
             this.collection.clear();
             this.byRoot.clear();
@@ -55,7 +70,7 @@ export class PhiDiagnostics implements vscode.Disposable {
     }
 
     private schedule(doc: vscode.TextDocument, delay: number) {
-        if (doc.languageId !== 'phi' || doc.uri.scheme !== 'file' || this.mode() === 'off') return;
+        if (doc.languageId !== 'phi' || doc.uri.scheme !== 'file' || this.mode() === 'off' || this.server.running) return;
         const key = this.ws.key(doc.fileName);
         clearTimeout(this.timers.get(key));
         this.timers.set(key, setTimeout(() => {
@@ -79,6 +94,7 @@ export class PhiDiagnostics implements vscode.Disposable {
      */
     async check(doc: vscode.TextDocument, force = false): Promise<{ errors: number; warnings: number } | undefined> {
         if (doc.languageId !== 'phi' || doc.uri.scheme !== 'file') return undefined;
+        if (this.server.running) return this.fromServer(doc);
         const compiler = this.ws.compiler;
         if (!compiler) {
             this.warnMissingCompiler();
@@ -124,6 +140,14 @@ export class PhiDiagnostics implements vscode.Disposable {
             if (this.running.get(key) === abort) this.running.delete(key);
             if (temp) fs.rm(temp, { force: true }, () => undefined);
         }
+    }
+
+    /** What the server says now. It answers a question only once its errors for this text are out. */
+    private async fromServer(doc: vscode.TextDocument): Promise<{ errors: number; warnings: number }> {
+        await this.server.definition(doc, new vscode.Position(0, 0));
+        const found = vscode.languages.getDiagnostics(doc.uri);
+        const errors = found.filter(d => d.severity === vscode.DiagnosticSeverity.Error).length;
+        return { errors, warnings: found.length - errors };
     }
 
     private apply(doc: vscode.TextDocument, key: string, found: CompilerDiagnostic[], temp: string | undefined) {

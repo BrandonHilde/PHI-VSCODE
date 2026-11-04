@@ -2,7 +2,7 @@
   "name": "phi-language",
   "displayName": "PHI Language",
   "description": "Language support for PHI, the systems language for boot sectors, kernels and PHI OS: highlighting, compiler diagnostics, IntelliSense, outline, go to definition, and build/run commands.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "phi-lang",
   "license": "GPL-3.0-only",
   "icon": "images/phi.png",
@@ -110,6 +110,11 @@
         "command": "phi.locateCompiler",
         "title": "Locate Compiler…",
         "category": "PHI"
+      },
+      {
+        "command": "phi.restartServer",
+        "title": "Restart Language Server",
+        "category": "PHI"
       }
     ],
     "menus": {
@@ -200,18 +205,18 @@
             "off"
           ],
           "enumDescriptions": [
-            "Run `phi check` when a file is opened or saved.",
-            "Also run `phi check` while typing (writes a hidden temporary copy next to the file so `use` paths resolve).",
-            "Don't run the compiler for diagnostics."
+            "With `phi lsp`, as with `onType`. With a phi too old to have it, run `phi check` when a file is opened or saved.",
+            "Show errors while typing, from the text as it is, saved or not.",
+            "Don't show the compiler's errors."
           ],
-          "default": "onSave",
-          "markdownDescription": "When to run `phi check` and show its errors in the Problems panel."
+          "default": "onType",
+          "markdownDescription": "When to show the compiler's errors in the Problems panel."
         },
         "phi.validateDelay": {
           "type": "number",
           "default": 600,
           "minimum": 100,
-          "markdownDescription": "Milliseconds to wait after the last keystroke before checking, when `#phi.validate#` is `onType`."
+          "markdownDescription": "Only for a phi too old to have `phi lsp`: milliseconds to wait after the last keystroke before running `phi check`, when `#phi.validate#` is `onType`."
         },
         "phi.qemuPath": {
           "type": "string",
@@ -283,9 +288,12 @@
     "watch": "tsc -watch -p ./",
     "test": "npm run compile && node --test \"out/test/*.test.js\"",
     "sync-builtins": "node scripts/sync-builtins.js",
-    "package": "vsce package --no-dependencies --allow-missing-repository",
+    "package": "vsce package --allow-missing-repository",
     "vscode:prepublish": "npm run compile",
     "test:integration": "npm run compile && node scripts/integration.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "9.0.1"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
