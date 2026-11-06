@@ -1,12 +1,12 @@
 # PHI for Visual Studio Code
 
-Language support for [PHI](https://github.com/BrandonHilde/PHI), the language for boot sectors, 32-bit kernels and PHI OS.
+Language support for [PHI](https://github.com/BrandonHilde/PHI), the language for boot sectors, 32-bit kernels, PHI OS, and programs for Linux and Windows.
 
 ## Features
 
 - **Syntax highlighting** that follows the compiler's own rules: `#` comments, a lone `#` that opens
   a block comment, `'hasn't'`-style strings, `;;` block ends, `[Method: ...]` / `[end: value]`,
-  and x86 highlighting inside `asm.Name { }` blocks, including `{variable}` and `{CONSTANT}`.
+  and x86 highlighting inside `asm.Name { }` and `x64.Name { }` blocks, including `{variable}` and `{CONSTANT}`.
   `` ```phi `` code blocks in Markdown are highlighted too.
 - **Errors as you type**, from `phi lsp`, the compiler's language server, in the Problems panel and
   as squiggles. Unsaved text counts, in the file and in the modules you have open. A module is

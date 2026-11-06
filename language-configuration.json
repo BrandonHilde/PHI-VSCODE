@@ -22,7 +22,7 @@
   ],
   "wordPattern": "[A-Za-z_][A-Za-z0-9_]*|-?(?:0[xX][0-9A-Fa-f_]+|[01][01_]*b|\\d[\\d_]*(?:\\.\\d+)?)",
   "indentationRules": {
-    "increaseIndentPattern": "^\\s*(?:(?:if|elif|else|while|unsafe)\\b.*|\\[(?!\\s*end\\b)[^\\]]*\\]\\s*(?:#.*)?|.*\\{\\s*(?:#.*)?)$",
+    "increaseIndentPattern": "^\\s*(?:(?:if|elif)\\b(?!.*;\\s*(?:#.*)?$).*|is\\b(?!.*;\\s*(?:#.*)?$).*|(?:else|while|unsafe|when|locked)\\b.*|\\[(?!\\s*end\\b)[^\\]]*\\]\\s*(?:#.*)?|.*\\{\\s*(?:#.*)?)$",
     "decreaseIndentPattern": "^\\s*(?:;;|\\[\\s*end\\b|\\})"
   },
   "onEnterRules": [

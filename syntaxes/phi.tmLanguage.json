@@ -9,6 +9,9 @@
     { "include": "#use" },
     { "include": "#class-header" },
     { "include": "#struct-header" },
+    { "include": "#interface-header" },
+    { "include": "#enum-header" },
+    { "include": "#system-call" },
     { "include": "#method-header" },
     { "include": "#statements" }
   ],
@@ -54,13 +57,29 @@
     },
 
     "use": {
-      "name": "meta.use.phi",
-      "match": "\\b(use)\\s+([A-Za-z_][\\w]*(?:\\.[A-Za-z_][\\w]*)*)\\s*(;)?",
-      "captures": {
-        "1": { "name": "keyword.control.import.phi" },
-        "2": { "name": "entity.name.namespace.phi" },
-        "3": { "name": "punctuation.terminator.statement.phi" }
-      }
+      "patterns": [
+        {
+          "comment": "use 'kernel32.dll' as Kernel32; a library of outside functions",
+          "name": "meta.use.library.phi",
+          "match": "\\b(use)\\s+('[^']*')\\s+(as)\\s+([A-Za-z_]\\w*)\\s*(;)?",
+          "captures": {
+            "1": { "name": "keyword.control.import.phi" },
+            "2": { "name": "string.quoted.single.phi" },
+            "3": { "name": "keyword.operator.cast.phi" },
+            "4": { "name": "entity.name.type.class.phi" },
+            "5": { "name": "punctuation.terminator.statement.phi" }
+          }
+        },
+        {
+          "name": "meta.use.phi",
+          "match": "\\b(use)\\s+([A-Za-z_][\\w]*(?:\\.[A-Za-z_][\\w]*)*)\\s*(;)?",
+          "captures": {
+            "1": { "name": "keyword.control.import.phi" },
+            "2": { "name": "entity.name.namespace.phi" },
+            "3": { "name": "punctuation.terminator.statement.phi" }
+          }
+        }
+      ]
     },
 
     "class-header": {
@@ -73,7 +92,7 @@
         "4": { "name": "punctuation.separator.inheritance.phi" },
         "5": {
           "patterns": [
-            { "name": "support.class.base.phi", "match": "\\b(?:Bootloader|OS|Kernel|Program|Library)\\b" },
+            { "name": "support.class.base.phi", "match": "\\b(?:Bootloader|OS|Kernel|Program|Library|Linux|Linux32|Linux64|Windows|PhiOS)\\b" },
             { "name": "entity.other.inherited-class.phi", "match": "\\w+" }
           ]
         }
@@ -82,18 +101,51 @@
 
     "struct-header": {
       "name": "meta.struct.phi",
-      "match": "\\b(struct)(\\.)([A-Za-z_]\\w*)",
+      "match": "\\b(struct)(\\.)([A-Za-z_]\\w*)(?:\\s+(foreign)\\b)?(?:\\s+(has)((?:\\s+[A-Za-z_]\\w*)+))?",
       "captures": {
         "1": { "name": "storage.type.struct.phi" },
         "2": { "name": "punctuation.accessor.phi" },
-        "3": { "name": "entity.name.type.struct.phi" }
+        "3": { "name": "entity.name.type.struct.phi" },
+        "4": { "name": "storage.modifier.foreign.phi" },
+        "5": { "name": "keyword.other.has.phi" },
+        "6": { "name": "entity.other.inherited-class.phi" }
+      }
+    },
+
+    "interface-header": {
+      "name": "meta.interface.phi",
+      "match": "\\b(interface)(\\.)([A-Za-z_]\\w*)",
+      "captures": {
+        "1": { "name": "storage.type.interface.phi" },
+        "2": { "name": "punctuation.accessor.phi" },
+        "3": { "name": "entity.name.type.interface.phi" }
+      }
+    },
+
+    "enum-header": {
+      "name": "meta.enum.phi",
+      "match": "\\b(enum)(\\.)([A-Za-z_]\\w*)",
+      "captures": {
+        "1": { "name": "storage.type.enum.phi" },
+        "2": { "name": "punctuation.accessor.phi" },
+        "3": { "name": "entity.name.type.enum.phi" }
+      }
+    },
+
+    "system-call": {
+      "comment": "sys.Read: 3  int fd  ptr<u8> buffer  u32 count; and (sys.GetPid)",
+      "match": "\\b(sys)(\\.)([A-Za-z_]\\w*)",
+      "captures": {
+        "1": { "name": "storage.type.sys.phi" },
+        "2": { "name": "punctuation.accessor.phi" },
+        "3": { "name": "support.function.system-call.phi" }
       }
     },
 
     "asm-block": {
-      "comment": "asm.Name { ... } holds raw NASM. The header must be followed by '{' or the end of the line, so 'call asm.Name;' isn't a block.",
+      "comment": "asm.Name { ... } and x64.Name { ... } hold raw NASM. The header must be followed by '{' or the end of the line, so 'call asm.Name;' isn't a block.",
       "name": "meta.asm-block.phi",
-      "begin": "\\b(asm|arm)(\\.)([A-Za-z_]\\w*)(?=\\s*(?:\\{|#|$))",
+      "begin": "\\b(asm|x64|arm)(\\.)([A-Za-z_]\\w*)(?=\\s*(?:\\{|#|$))",
       "beginCaptures": {
         "1": { "name": "storage.type.asm.phi" },
         "2": { "name": "punctuation.accessor.phi" },
@@ -138,7 +190,7 @@
         { "name": "string.quoted.double.asm.phi", "match": "\"[^\"]*\"" },
         { "name": "string.quoted.single.asm.phi", "match": "'[^']*'" },
         { "name": "string.quoted.other.asm.phi", "match": "`[^`]*`" },
-        { "name": "keyword.other.directive.asm.phi", "match": "(?i)\\b(?:db|dw|dd|dq|dt|resb|resw|resd|resq|times|equ|align|bits|use16|use32|section|segment|global|extern|org|incbin)\\b" },
+        { "name": "keyword.other.directive.asm.phi", "match": "(?i)\\b(?:db|dw|dd|dq|dt|resb|resw|resd|resq|times|equ|align|bits|use16|use32|use64|default|rel|section|segment|global|extern|org|incbin)\\b" },
         { "name": "keyword.control.directive.preprocessor.asm.phi", "match": "%\\w+" },
         {
           "match": "^\\s*(?:(\\.?[A-Za-z_$?@][\\w$?@.]*)(:))?\\s*(?:((?i:rep|repe|repne|repz|repnz|lock))\\s+)?([A-Za-z][A-Za-z0-9]*)\\b(?!\\s*:)",
@@ -156,7 +208,7 @@
             "2": { "name": "punctuation.separator.label.asm.phi" }
           }
         },
-        { "name": "variable.language.register.asm.phi", "match": "(?i)\\b(?:[er]?[abcd]x|[abcd][lh]|[er]?(?:si|di|sp|bp|ip)|[cdefgs]s|cr[0-8]|dr[0-7]|[er]?flags|st[0-7]?|[xy]mm\\d+)\\b" },
+        { "name": "variable.language.register.asm.phi", "match": "(?i)\\b(?:[er]?[abcd]x|[abcd][lh]|[er]?(?:si|di|sp|bp|ip)|sil|dil|spl|bpl|r(?:[89]|1[0-5])[bwd]?|[cdefgs]s|cr[0-8]|dr[0-7]|[er]?flags|st[0-7]?|[xy]mm\\d+)\\b" },
         { "name": "storage.type.size.asm.phi", "match": "(?i)\\b(?:byte|word|dword|qword|tword|ptr|short|near|far|strict)\\b" },
         { "name": "constant.numeric.hex.asm.phi", "match": "(?i)\\b(?:0x[0-9a-f_]+|[0-9][0-9a-f_]*h)\\b" },
         { "name": "constant.numeric.binary.asm.phi", "match": "(?i)\\b[01][01_]*b\\b" },
@@ -215,7 +267,7 @@
           "end": "\\]",
           "endCaptures": { "0": { "name": "punctuation.definition.method.end.phi" } },
           "patterns": [
-            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i16|u16|i8|u8|byt|bln|str|var|ptr|dec|fin)\\b)" },
+            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|dec|fin|lock|ptr)\\b)" },
             { "include": "#statements" }
           ]
         }
@@ -229,6 +281,7 @@
         { "include": "#const-declaration" },
         { "include": "#declaration" },
         { "include": "#control" },
+        { "include": "#system-call" },
         { "include": "#call" },
         { "include": "#keywords" },
         { "include": "#builtins" },
@@ -242,7 +295,7 @@
 
     "primitive-type": {
       "name": "storage.type.primitive.phi",
-      "match": "\\b(?:int|i32|u32|i16|u16|i8|u8|byt|bln|str|var|dec|fin)\\b"
+      "match": "\\b(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|dec|fin|lock)\\b"
     },
 
     "type-name": {
@@ -281,7 +334,7 @@
         },
         {
           "name": "meta.declaration.variable.phi",
-          "match": "\\b(int|i32|u32|i16|u16|i8|u8|byt|bln|str|var|dec|fin)\\s+([A-Za-z_]\\w*)\\b(?!\\s*\\.)",
+          "match": "\\b(int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|dec|fin|lock)\\s+([A-Za-z_]\\w*)\\b(?!\\s*\\.)",
           "captures": {
             "1": { "name": "storage.type.primitive.phi" },
             "2": {
@@ -314,8 +367,10 @@
 
     "control": {
       "patterns": [
-        { "name": "keyword.control.conditional.phi", "match": "\\b(?:if|elif|else)\\b" },
-        { "name": "keyword.control.loop.phi", "match": "\\bwhile\\b" },
+        { "name": "keyword.control.conditional.phi", "match": "\\b(?:if|elif|else|when)\\b" },
+        { "name": "keyword.control.loop.phi", "match": "\\b(?:while|each)\\b" },
+        { "name": "keyword.control.lock.phi", "match": "\\b(?:locked|atomic)\\b" },
+        { "name": "keyword.control.exception.phi", "match": "\\b(?:throw|throws)\\b" },
         { "name": "keyword.control.unsafe.phi", "match": "\\bunsafe\\b" },
         { "name": "keyword.control.flow.exit.phi", "match": "\\bexit\\b" },
         { "name": "keyword.control.flow.phi", "match": "\\b(?:return|break|continue)\\b" },
@@ -371,7 +426,10 @@
         { "name": "keyword.operator.comparison.phi", "match": "\\b(?:is|below|above|atmost|atleast|has)\\b" },
         { "name": "constant.language.boolean.phi", "match": "\\b(?:true|false)\\b" },
         { "name": "keyword.control.import.phi", "match": "\\buse\\b" },
-        { "name": "storage.modifier.const.phi", "match": "\\bconst\\b" }
+        { "name": "storage.modifier.const.phi", "match": "\\bconst\\b" },
+        { "name": "storage.modifier.volatile.phi", "match": "\\bvolatile\\b" },
+        { "name": "storage.modifier.foreign.phi", "match": "\\bforeign\\b" },
+        { "name": "storage.modifier.into.phi", "match": "\\binto\\b" }
       ]
     },
 
@@ -403,6 +461,13 @@
           "captures": {
             "1": { "name": "punctuation.accessor.phi" },
             "2": { "name": "support.variable.property.len.phi" }
+          }
+        },
+        {
+          "match": "(\\.)\\s*(max)\\b",
+          "captures": {
+            "1": { "name": "punctuation.accessor.phi" },
+            "2": { "name": "support.variable.property.max.phi" }
           }
         },
         {

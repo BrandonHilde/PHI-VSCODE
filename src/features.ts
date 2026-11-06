@@ -42,8 +42,8 @@ function scanOf(target: Target): ScanResult {
 }
 
 const kindLabel: Record<string, string> = {
-    class: 'class', struct: 'struct', field: 'field', asm: 'asm block', method: 'method', isr: 'interrupt handler',
-    event: 'event', const: 'constant', variable: 'variable', parameter: 'parameter',
+    class: 'class', struct: 'struct', interface: 'interface', enum: 'enum', enumValue: 'value', field: 'field', asm: 'asm block',
+    method: 'method', isr: 'interrupt handler', event: 'event', const: 'constant', variable: 'variable', parameter: 'parameter',
 };
 
 function describeContainer(s: PhiSymbol): string {
@@ -55,7 +55,7 @@ function describeContainer(s: PhiSymbol): string {
         case 'variable':
         case 'const':
             return c.kind === 'class' ? `${kindLabel[s.kind]} in class \`${c.name}\`` : `local ${kindLabel[s.kind]} in \`${c.name}\``;
-        default: return `${kindLabel[s.kind]} in class \`${c.name}\``;
+        default: return `${kindLabel[s.kind]} of ${kindLabel[c.kind]} \`${c.name}\``;
     }
 }
 
@@ -115,6 +115,9 @@ function symbolKind(s: PhiSymbol): vscode.SymbolKind {
     switch (s.kind) {
         case 'class': return vscode.SymbolKind.Class;
         case 'struct': return vscode.SymbolKind.Struct;
+        case 'interface': return vscode.SymbolKind.Interface;
+        case 'enum': return vscode.SymbolKind.Enum;
+        case 'enumValue': return vscode.SymbolKind.EnumMember;
         case 'field': return vscode.SymbolKind.Field;
         case 'asm': return vscode.SymbolKind.Function;
         case 'method': return vscode.SymbolKind.Method;
@@ -130,6 +133,9 @@ function completionKind(s: PhiSymbol): vscode.CompletionItemKind {
     switch (s.kind) {
         case 'class': return vscode.CompletionItemKind.Class;
         case 'struct': return vscode.CompletionItemKind.Struct;
+        case 'interface': return vscode.CompletionItemKind.Interface;
+        case 'enum': return vscode.CompletionItemKind.Enum;
+        case 'enumValue': return vscode.CompletionItemKind.EnumMember;
         case 'field': return vscode.CompletionItemKind.Field;
         case 'asm': return vscode.CompletionItemKind.Function;
         case 'method': case 'isr': case 'event': return vscode.CompletionItemKind.Method;
@@ -514,6 +520,8 @@ class Features implements
         for (const files of [visible, workspace]) {
             const cls = files.flatMap(f => f.result.symbols).filter(s => s.kind === 'class' && s.name === qualifier);
             if (cls.length) return this.items(cls.flatMap(c => c.children.filter(isMember)));
+            const named = files.flatMap(f => f.result.symbols).filter(s => s.kind === 'enum' && s.name === qualifier);
+            if (named.length) return this.items(named.flatMap(e => e.children));
         }
 
         // variable.field
@@ -524,7 +532,7 @@ class Features implements
               ?? visible.flatMap(f => f.result.allSymbols).find(s => s.name === qualifier && isMember(s))
             : undefined;
         const struct = structOf(variable?.type);
-        const structs = [...visible, ...workspace].flatMap(f => f.result.symbols).filter(s => s.kind === 'struct');
+        const structs = [...visible, ...workspace].flatMap(f => f.result.symbols).filter(s => s.kind === 'struct' || s.kind === 'interface');
         if (struct) {
             const def = structs.find(s => s.name === struct);
             if (def) return this.items(def.children);
@@ -582,13 +590,13 @@ class Features implements
 
         for (const s of visibleLocals(scan, offset)) push(this.symbolItem(s, '0'));
         for (const f of visible) for (const s of f.result.allSymbols) {
-            if (['class', 'struct', 'asm'].includes(s.kind) || (s.kind === 'const' && !s.container)) push(this.symbolItem(s, '2'));
+            if (['class', 'struct', 'interface', 'enum', 'asm'].includes(s.kind) || (s.kind === 'const' && !s.container)) push(this.symbolItem(s, '2'));
             else if (isMember(s)) push(this.symbolItem(s, '2'));
         }
         for (const q of ['OS', 'Bootloader', 'Colors']) push(this.prefixItem(q));
 
         for (const [word, info] of Object.entries(keywords)) {
-            if (['isr', 'end', 'len'].includes(word)) continue;
+            if (['isr', 'end', 'len', 'max'].includes(word)) continue;
             const item = new vscode.CompletionItem(word, vscode.CompletionItemKind.Keyword);
             item.documentation = new vscode.MarkdownString().appendCodeblock(info.syntax, 'phi').appendMarkdown(info.description);
             item.sortText = '5' + word;

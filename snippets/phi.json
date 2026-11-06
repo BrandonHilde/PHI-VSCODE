@@ -196,5 +196,82 @@
     "prefix": "use",
     "description": "Load another file",
     "body": "use ${1|drivers.vga_text,boot.info,fs.fat16,proc.process,memory.list,memory.heap,user.text,drivers.ata,drivers.disk,drivers.rtc|};"
+  },
+  "When": {
+    "prefix": ["when"],
+    "description": "when: the first branch that matches runs",
+    "body": [
+      "when ${1:value}",
+      "\tis ${2:first}",
+      "\t\t$0",
+      "\t;;",
+      "\telse",
+      "\t\t",
+      "\t;;",
+      ";;"
+    ]
+  },
+  "Each": {
+    "prefix": ["each"],
+    "description": "while each: an array's elements, in order",
+    "body": [
+      "while each ${1:item} in ${2:list}",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "Enum": {
+    "prefix": ["enum", "enum."],
+    "description": "An enum: named values of a type of its own",
+    "body": [
+      "enum.${1:Name}",
+      "{",
+      "\t${2:FIRST}",
+      "\t$0",
+      "}"
+    ]
+  },
+  "Interface": {
+    "prefix": ["interface", "interface."],
+    "description": "An interface: the methods a struct with it has",
+    "body": [
+      "interface.${1:Name}",
+      "{",
+      "\t[${2:Method}]",
+      "\t$0",
+      "}"
+    ]
+  },
+  "Struct with an interface": {
+    "prefix": ["structhas"],
+    "description": "A struct that has an interface",
+    "body": [
+      "struct.${1:Name} has ${2:Interface}",
+      "{",
+      "\t${3:int} ${4:value};",
+      "",
+      "\t[${5:Method}]",
+      "\t[end: $4]",
+      "}"
+    ]
+  },
+  "Locked": {
+    "prefix": ["locked"],
+    "description": "A block one thread at a time runs, under a lock",
+    "body": [
+      "locked ${1:guard}",
+      "\t$0",
+      ";;"
+    ]
+  },
+  "Catch": {
+    "prefix": ["throws", "catch"],
+    "description": "Call a method, and catch an error it throws",
+    "body": [
+      "if call ${1:Method}: ${2:argument} throws ${3:err}",
+      "\tlog $3 '\\n';",
+      "\t$0",
+      ";;"
+    ]
   }
 }

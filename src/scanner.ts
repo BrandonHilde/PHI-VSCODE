@@ -26,7 +26,7 @@ export interface Comment {
 }
 
 export type SymbolKind =
-    | 'class' | 'struct' | 'field' | 'asm'
+    | 'class' | 'struct' | 'interface' | 'enum' | 'enumValue' | 'field' | 'asm'
     | 'method' | 'isr' | 'event'
     | 'const' | 'variable' | 'parameter';
 
@@ -94,6 +94,11 @@ const isHex = (c: string) => /[0-9A-Fa-f]/.test(c);
 const isSpace = (c: string) => c === ' ' || c === '\t' || c === '\r' || c === '\n' || c === '\f' || c === '\v' || c === ' ' || c === '﻿';
 
 const twoCharPunct = new Set([';;', '++', '--', '**', '//', '%%', '^^', '==', '!=', '<=', '>=', '<<', '>>']);
+const assemblyWords = new Set(['asm', 'x64', 'arm']);
+/** After one of these, an `if` is on one line, with no `;;` to end it. */
+const oneLineWords = new Set(['return', 'break', 'continue', 'call', 'exit']);
+/** What comes before a word in an enum's value (A: B + 1), so it isn't another of its names. */
+const valueBefore = new Set([':', '+', '-', '*', '/', '%', '&', '|', '^', '~', '<<', '>>', '(', '.']);
 
 export function computeLineStarts(text: string): number[] {
     const starts = [0];
@@ -211,7 +216,7 @@ export function lex(text: string): { tokens: Token[]; comments: Comment[] } {
         const n = tokens.length;
         if (token.text === '{' && token.kind === 'punct' && n >= 4
             && tokens[n - 2].kind === 'ident' && tokens[n - 3].text === '.'
-            && (tokens[n - 4].text === 'asm' || tokens[n - 4].text === 'arm') && tokens[n - 4].kind === 'ident') {
+            && assemblyWords.has(tokens[n - 4].text) && tokens[n - 4].kind === 'ident') {
             const rawStart = pos;
             let depth = 1;
             while (pos < text.length) {
@@ -233,7 +238,8 @@ const primitive = new Set(primitiveTypeNames);
 const statementEnders = new Set([';', ';;', '{', '}', ']']);
 
 interface Frame {
-    kind: 'class' | 'struct' | 'method' | 'brace';
+    /** a struct's also an interface's: its methods are headers with no [end] */
+    kind: 'class' | 'struct' | 'enum' | 'method' | 'brace';
     symbol?: PhiSymbol;
 }
 
@@ -288,33 +294,46 @@ export function scan(text: string): ScanResult {
         return { end: at(j - 1).end, next: j - 1 };
     }
 
-    /** a type at token i: int, u8, ptr<Task>, Task; returns its text and the token after it */
+    /** a type at token i: int, u8, ptr<Task>, ptr<ptr<u8>>, method<int: int>, Task; returns its text and the token after it */
     function readType(i: number, allowStruct: boolean): { type: string; next: number } | undefined {
-        if (is(i, 'ptr') && is(i + 1, '<') && isIdent(i + 2) && is(i + 3, '>'))
-            return { type: `ptr<${at(i + 2).text}>`, next: i + 4 };
+        if ((is(i, 'ptr') || is(i, 'method')) && is(i + 1, '<')) {
+            let depth = 1;
+            let k = i + 2;
+            while (depth > 0 && at(k).kind !== 'eof' && !at(k).startsLine) {
+                if (at(k).text === '<') depth++;
+                else if (at(k).text === '>') depth--;
+                else if (at(k).text === '>>') depth -= 2;
+                k++;
+            }
+            if (depth !== 0) return undefined;
+            return { type: text.slice(at(i).start, at(k - 1).end).replace(/\s+/g, ' '), next: k };
+        }
         if (isIdent(i) && primitive.has(at(i).text)) return { type: at(i).text, next: i + 1 };
         if (allowStruct && isName(i) && /^[A-Z]/.test(at(i).text)) return { type: at(i).text, next: i + 1 };
         return undefined;
     }
 
     /**
-     * A declaration starting at token i: `type name ...;` (or `const type NAME ...;`).
-     * Struct-typed declarations (Task t;) are only recognized at the start of a statement.
+     * A declaration starting at token i: `type name ...;`, `const type NAME ...;` or
+     * `new type name ...;`. Struct-typed declarations (Task t;) are only recognized at the start
+     * of a statement.
      */
     function tryDeclaration(i: number, kind: SymbolKind, parent: PhiSymbol | undefined, until?: number): number | undefined {
         let j = i;
         let isConst = false;
         if (is(j, 'const')) { isConst = true; j++; }
+        const isNew = is(j, 'new') && statementStart(i);
+        if (isNew) j++;
 
         const t = readType(j, true);
-        if (!t || !isName(t.next)) return undefined;
+        if (!t || !isName(t.next) || at(t.next).startsLine) return undefined;
         const nameToken = at(t.next);
 
         // a struct-typed declaration needs something after the name that only a declaration has
-        if (!primitive.has(t.type) && !t.type.startsWith('ptr<')) {
+        if (!primitive.has(t.type) && !t.type.startsWith('ptr<') && !t.type.startsWith('method<')) {
             if (!statementStart(i)) return undefined;
             const after = at(t.next + 1).text;
-            if (![':', '=', ';', '['].includes(after)) return undefined;
+            if (![':', '=', ';', '[', ...(isNew ? ['at'] : [])].includes(after)) return undefined;
         }
 
         let end: number;
@@ -409,6 +428,29 @@ export function scan(text: string): ScanResult {
         if (endLine > startLine) folding.push({ startLine, endLine, kind });
     }
 
+    /** if x return; has no `;;`. (if call F throws err has: its `call` comes first, and it's the test.) */
+    function isOneLineIf(i: number): boolean {
+        const here = line(at(i).start);
+        for (let k = i + 2; at(k).kind !== 'eof' && line(at(k).start) === here; k++)
+            if (at(k).kind === 'ident' && oneLineWords.has(at(k).text)) return true;
+        return false;
+    }
+
+    /** A name a statement declares that has no declaration of its own: each x, throws err, is Player p. */
+    function addNamed(nameToken: Token, type: string | undefined, signature: string) {
+        add({
+            name: nameToken.text, kind: 'variable', start: nameToken.start, end: nameToken.end,
+            nameStart: nameToken.start, nameEnd: nameToken.end, type, signature, children: [],
+        }, currentMethod() ?? currentClass());
+    }
+
+    /** Header words after a struct's name, up to its '{': foreign, has A B. */
+    function headerEnd(from: number): number {
+        let k = from;
+        while (isIdent(k) && !at(k).startsLine) k++;
+        return at(k - 1).end;
+    }
+
     for (let i = 0; i < tokens.length; i++) {
         const t = tokens[i];
         if (t.kind === 'eof') break;
@@ -444,12 +486,13 @@ export function scan(text: string): ScanResult {
             continue;
         }
 
-        // struct.Name
-        if (t.text === 'struct' && is(i + 1, '.') && isIdent(i + 2)) {
+        // struct.Name, struct.Name foreign has A B, interface.Name, enum.Name
+        if ((t.text === 'struct' || t.text === 'interface' || t.text === 'enum') && t.kind === 'ident' && is(i + 1, '.') && isIdent(i + 2)) {
             const name = at(i + 2);
             pendingHeader = {
-                name: name.text, kind: 'struct', start: t.start, end: name.end,
-                nameStart: name.start, nameEnd: name.end, signature: `struct.${name.text}`, children: [],
+                name: name.text, kind: t.text, start: t.start, end: name.end,
+                nameStart: name.start, nameEnd: name.end,
+                signature: text.slice(t.start, t.text === 'struct' ? headerEnd(i + 3) : name.end).replace(/\s+/g, ' '), children: [],
             };
             add(pendingHeader, undefined);
             i += 2;
@@ -457,7 +500,7 @@ export function scan(text: string): ScanResult {
         }
 
         // asm.Name { raw }
-        if ((t.text === 'asm' || t.text === 'arm') && is(i + 1, '.') && isIdent(i + 2) && is(i + 3, '{')) {
+        if (assemblyWords.has(t.text) && is(i + 1, '.') && isIdent(i + 2) && is(i + 3, '{')) {
             const name = at(i + 2);
             const close = at(i + 4).kind === 'raw' ? i + 5 : i + 4;
             const end = is(close, '}') ? at(close).end : at(close).start;
@@ -472,7 +515,7 @@ export function scan(text: string): ScanResult {
 
         if (t.text === '{' && t.kind === 'punct') {
             if (pendingHeader) {
-                frames.push({ kind: pendingHeader.kind === 'class' ? 'class' : 'struct', symbol: pendingHeader });
+                frames.push({ kind: pendingHeader.kind === 'class' ? 'class' : pendingHeader.kind === 'enum' ? 'enum' : 'struct', symbol: pendingHeader });
                 pendingHeader = undefined;
             } else {
                 frames.push({ kind: 'brace' });
@@ -505,6 +548,17 @@ export function scan(text: string): ScanResult {
             continue;
         }
 
+        // an enum's values
+        if (top?.kind === 'enum') {
+            if (t.kind === 'ident' && isName(i) && !valueBefore.has(at(i - 1).text)) {
+                add({
+                    name: t.text, kind: 'enumValue', start: t.start, end: t.end, nameStart: t.start, nameEnd: t.end,
+                    type: top.symbol?.name, signature: `${top.symbol?.name}.${t.text}`, children: [],
+                }, top.symbol);
+            }
+            continue;
+        }
+
         // struct fields
         if (top?.kind === 'struct') {
             const next = tryDeclaration(i, 'field', top.symbol);
@@ -513,13 +567,35 @@ export function scan(text: string): ScanResult {
         }
 
         // control blocks, for folding
-        if (t.kind === 'ident' && ['if', 'elif', 'else', 'while', 'unsafe'].includes(t.text) && statementStart(i)) {
-            controls.push(line(t.start));
+        if (t.kind === 'ident' && ['if', 'elif', 'else', 'while', 'unsafe', 'when', 'locked'].includes(t.text) && statementStart(i)) {
+            const oneLine = (t.text === 'if' || t.text === 'elif') && isOneLineIf(i);
+            if (!oneLine) controls.push(line(t.start));
+            if (t.text === 'if' || t.text === 'elif') {
+                // if call Load: path throws err  declares what it catches
+                const here = line(t.start);
+                for (let k = i + 1; at(k).kind !== 'eof' && line(at(k).start) === here; k++)
+                    if (is(k, 'throws') && isName(k + 1)) addNamed(at(k + 1), 'Error', `throws ${at(k + 1).text}`);
+            }
             if (t.text === 'while') {
+                if (is(i + 1, 'each') && isName(i + 2)) {
+                    // while each x in list
+                    addNamed(at(i + 2), undefined, text.slice(at(i + 1).start, statementEnd(i + 1).end).replace(/\s+/g, ' '));
+                    i += 2;
+                    continue;
+                }
                 // while int i: 0; ...  declares a loop counter
                 const next = tryDeclaration(i + 1, 'variable', currentMethod() ?? currentClass());
                 if (next !== undefined) i = next;
             }
+            continue;
+        }
+
+        // when's branches: is 'a' 'b' ... ;; (nothing else starts a statement with `is`)
+        if (t.kind === 'ident' && t.text === 'is' && statementStart(i)) {
+            if (!isOneLineIf(i)) controls.push(line(t.start));
+            // is Player p  asks which struct it holds
+            if (isName(i + 1) && /^[A-Z]/.test(at(i + 1).text) && isName(i + 2) && line(at(i + 2).start) === line(t.start))
+                addNamed(at(i + 2), at(i + 1).text, `is ${at(i + 1).text} ${at(i + 2).text}`);
             continue;
         }
 
@@ -531,7 +607,7 @@ export function scan(text: string): ScanResult {
 
         // declarations in a class or method
         if (top?.kind === 'class' || top?.kind === 'method' || (!top && t.text === 'const')) {
-            if (at(i - 1).text === 'new' || at(i - 1).text === '.') continue;
+            if (at(i - 1).text === 'new' || at(i - 1).text === '.' || at(i - 1).text === 'as') continue;
             const next = tryDeclaration(i, 'variable', currentMethod() ?? currentClass());
             if (next !== undefined) i = next;
         }

@@ -36,7 +36,7 @@ export function findBuiltin(qualifier: string, name: string): BuiltinFunction | 
 }
 
 const memberKinds = new Set(['method', 'isr', 'event', 'variable', 'const']);
-const topKinds = new Set(['class', 'struct', 'asm']);
+const topKinds = new Set(['class', 'struct', 'interface', 'enum', 'asm']);
 
 /** Class-level members: methods, variables and constants declared directly in a class. */
 export function isMember(s: PhiSymbol): boolean {
@@ -62,7 +62,20 @@ function fields(scans: FileScan[], name: string, structName?: string): Target[] 
     const out: Target[] = [];
     for (const { file, result } of scans)
         for (const s of result.allSymbols)
-            if (s.kind === 'field' && s.name === name && (!structName || s.container?.name === structName)) out.push({ file, symbol: s });
+            if (isOfAStruct(s) && s.name === name && (!structName || s.container?.name === structName)) out.push({ file, symbol: s });
+    return out;
+}
+
+/** A field, or a method of a struct or an interface. */
+function isOfAStruct(s: PhiSymbol): boolean {
+    return s.kind === 'field' || (s.kind === 'method' && (s.container?.kind === 'struct' || s.container?.kind === 'interface'));
+}
+
+function enumValues(scans: FileScan[], name: string, enumName: string): Target[] {
+    const out: Target[] = [];
+    for (const { file, result } of scans)
+        for (const s of result.allSymbols)
+            if (s.kind === 'enumValue' && s.name === name && s.container?.name === enumName) out.push({ file, symbol: s });
     return out;
 }
 
@@ -134,12 +147,15 @@ export function resolveAt(current: FileScan, offset: number, related: FileScan[]
     }
 
     if (qualifier !== undefined) {
+        const isProperty = name === 'len' || name === 'max';
         // Class.member
         if (qualifier && topLevel(all, qualifier, new Set(['class'])).length) {
-            if (name === 'len') return { kind: 'keyword', word: 'len', ...span };
+            if (isProperty) return { kind: 'keyword', word: name, ...span };
             return wrap(members(all, name, qualifier));
         }
-        if (name === 'len') return { kind: 'keyword', word: 'len', ...span };
+        // Enum.VALUE
+        if (qualifier && topLevel(all, qualifier, new Set(['enum'])).length) return wrap(enumValues(all, name, qualifier));
+        if (isProperty) return { kind: 'keyword', word: name, ...span };
 
         // variable.field: use the variable's struct type when it's known
         if (qualifier) {

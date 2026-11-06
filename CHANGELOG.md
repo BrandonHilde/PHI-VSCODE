@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.3.0
+
+Catches up with the language since 0.1.1, which reserved words last matched:
+
+- Highlighting, hovers and completion for everything added: `i64` `u64` `f16` `f32` `f64` `chr`
+  `lock`; `enum.Name`, `interface.Name` and `struct.Name has A`; `x64.Name` blocks and their
+  registers; `when`, `while each`, `locked`, `atomic`, `throw`, `throws`, `volatile`, `foreign`,
+  `into`; `sys.Name` and `use 'x.dll' as Name`; `.max`; and the class bases `Linux`, `Linux32`,
+  `Linux64`, `Windows` and `PhiOS`.
+- The outline, symbols, hovers and go to definition know enums and their values, and interfaces
+  and their methods. `x64` blocks are read as assembly, not code.
+- Found as variables: `new Thing t;`, `ptr<ptr<u8>> rows`, `method<int: int> f`,
+  `while each x in list`, `if call F throws err` and `is Player p`.
+- Folding and indenting: `when` and its branches and `locked` blocks. An `if` on one line, with no
+  `;;`, no longer upsets the folds around it or indents the next line.
+- `x as int` at the end of a line no longer reads as a declaration of what starts the next line.
+- Snippets for `when`, `each`, `enum`, `interface`, `locked` and catching an error.
+- Tests compare the reserved words and class bases with the compiler's, so they can't drift apart.
+- The built-in functions are up to date with the compiler.
+
 ## 0.2.0
 
 - Uses `phi lsp`, the compiler's language server, for what only the compiler really knows:

@@ -3,6 +3,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'fs';
 import * as path from 'path';
 import { findAsmLine } from '../src/asmMap';
+import { classBases, keywords, primitiveTypes, reservedWords } from '../src/languageData';
 import { callContextAt, lex, scan, symbolAt } from '../src/scanner';
 import { FileScan, resolveAt } from '../src/resolver';
 import { findCompiler, findLibrary, parseDiagnostics, resolveDiagnosticPath, resolveUse, check } from '../src/toolchain';
@@ -94,6 +95,89 @@ test('scanner: every .phi file in the PHI repository', { skip: !haveRepo && 'PHI
         total += found;
     }
     assert.ok(total >= 90, `only ${total} methods in the repository`);
+});
+
+test('reserved words match the compiler, and each says what it is', { skip: !haveRepo && 'PHI repository not found' }, () => {
+    const parser = fs.readFileSync(path.join(phiRoot, 'Compiler/Phi.Compiler/Syntax/Parser.cs'), 'utf8');
+    const lists = [...parser.matchAll(/public static readonly HashSet<string> (?:TypeKeywords|ReservedWords) = new[^{]*\{([^}]*)\}/g)];
+    assert.equal(lists.length, 2);
+    const compiler = new Set(lists.flatMap(l => [...l[1].matchAll(/"(\w+)"/g)].map(m => m[1])));
+    assert.ok(compiler.size > 60);
+    assert.deepEqual([...compiler].filter(w => !reservedWords.has(w)), [], 'reserved by the compiler, not here');
+    assert.deepEqual([...reservedWords].filter(w => !compiler.has(w)), [], 'reserved here, not by the compiler');
+    assert.deepEqual([...compiler].filter(w => !keywords[w] && !primitiveTypes[w]), [], 'no hover');
+});
+
+test('every class base of the compiler is explained', { skip: !haveRepo && 'PHI repository not found' }, () => {
+    const binder = fs.readFileSync(path.join(phiRoot, 'Compiler/Phi.Compiler/Semantics/Binder.cs'), 'utf8');
+    const bases = [...binder.matchAll(/\["(\w+)"\] = new\[\] \{ Host\./g)].map(m => m[1]);
+    assert.ok(bases.includes('Windows'));
+    assert.deepEqual(bases.filter(b => !classBases[b]), []);
+});
+
+test('scanner: enums, interfaces and a struct that has one', () => {
+    const r = scan('enum.Tool\n{\n\tPENCIL   # one\n\tERASER: 10\n\tFILL: ERASER + 1\n}\n\ninterface.Shape\n{\n\t[Area]\n\t[Grow: int by;]\n}\n\nstruct.Circle has Shape Solid\n{\n\tint r;\n\n\t[Area]\n\t[end: r]\n}\n');
+    assert.deepEqual(r.symbols.map(s => [s.kind, s.name]), [['enum', 'Tool'], ['interface', 'Shape'], ['struct', 'Circle']]);
+    assert.deepEqual(r.symbols[0].children.map(c => [c.kind, c.name, c.signature]), [
+        ['enumValue', 'PENCIL', 'Tool.PENCIL'], ['enumValue', 'ERASER', 'Tool.ERASER'], ['enumValue', 'FILL', 'Tool.FILL'],
+    ]);
+    assert.deepEqual(r.symbols[1].children.map(c => [c.kind, c.name]), [['method', 'Area'], ['method', 'Grow']]);
+    assert.equal(r.symbols[1].children[1].parameters?.[0].name, 'by');
+    assert.equal(r.symbols[2].signature, 'struct.Circle has Shape Solid');
+    assert.deepEqual(r.symbols[2].children.map(c => c.name), ['r', 'Area']);
+});
+
+test('resolver: an enum value, a method through an interface, and .max', () => {
+    const main = "enum.Tool\n{\n\tPENCIL\n}\ninterface.Shape\n{\n\t[Area]\n}\nphi.Main:Kernel\n{\n\tTool tool: Tool.PENCIL;\n\tnew Shape s;\n\tint a: (s.Area);\n\tint most: tool.max;\n}";
+    const current: FileScan = { file: 'main.phi', result: scan(main) };
+    const at = (needle: string) => resolveAt(current, main.indexOf(needle), [], () => undefined);
+
+    const value = at('PENCIL;');
+    assert.ok(value?.kind === 'symbols' && value.targets[0].symbol.kind === 'enumValue');
+    const type = at('Tool tool');
+    assert.ok(type?.kind === 'symbols' && type.targets[0].symbol.kind === 'enum');
+    const method = at('Area);');
+    assert.ok(method?.kind === 'symbols' && method.targets[0].symbol.container?.kind === 'interface');
+    const max = at('max;');
+    assert.ok(max?.kind === 'keyword' && max.word === 'max');
+    const word = at('enum.');
+    assert.ok(word?.kind === 'keyword' && word.word === 'enum');
+});
+
+test('scanner: x64 blocks are raw assembly', () => {
+    const r = scan('x64.Double\n{\n\tmov rax, [rsp]\n\t[not a method]\n}\nphi.A:Program\n{\n}\n');
+    assert.deepEqual(r.symbols.map(s => [s.kind, s.name]), [['asm', 'Double'], ['class', 'A']]);
+});
+
+test('scanner: declarations of the newer kinds', () => {
+    const r = scan("phi.A:Program\n{\n\tnew Cell corner at 0xB8000;\n\tnew Thing t: 1;\n\tchr c: 'a';\n\ti64 big: 1;\n\tptr<ptr<u8>> rows;\n\tmethod<int: int> handler;\n\tvolatile u32 ready;\n\tptr<u8> b: new u8[8];\n\tlock guard;\n\t[M]\n\t\twhile each item in rows\n\t\t;;\n\t\tif call F: 1 throws err\n\t\t;;\n\t\twhen x\n\t\t\tis Player p\n\t\t\t;;\n\t\t;;\n\t[end]\n}\n");
+    const cls = r.symbols[0];
+    assert.deepEqual(cls.children.filter(c => c.kind === 'variable').map(c => [c.name, c.type]), [
+        ['corner', 'Cell'], ['t', 'Thing'], ['c', 'chr'], ['big', 'i64'], ['rows', 'ptr<ptr<u8>>'], ['handler', 'method<int: int>'],
+        ['ready', 'u32'], ['b', 'ptr<u8>'], ['guard', 'lock'],
+    ]);
+    const method = cls.children.find(c => c.name === 'M')!;
+    assert.deepEqual(method.children.map(c => [c.name, c.type]), [['item', undefined], ['err', 'Error'], ['p', 'Player']]);
+});
+
+test("scanner: a type after `as` isn't a declaration", () => {
+    const r = scan("phi.A:Program\n{\n\t[M]\n\t\tif x is not y as int\n\t\t\terror is 'no';\n\t\t;;\n\t\tint n: y as int + 1;\n\t[end]\n}\n");
+    assert.deepEqual(r.symbols[0].children[0].children.map(c => c.name), ['n']);
+});
+
+test('scanner: a struct field that is an object', () => {
+    const r = scan('struct.Node\n{\n\tnew Node next: empty;\n\tnew str bio;\n}\n');
+    assert.deepEqual(r.symbols[0].children.map(c => [c.kind, c.name, c.type]), [['field', 'next', 'Node'], ['field', 'bio', 'str']]);
+});
+
+test('folding: when and locked blocks, and an if on one line has no ;;', () => {
+    const r = scan('phi.A:Program\n{\n\t[M]\n\t\tif outer\n\t\t\tif x return;\n\t\t\tif call F: 1 throws err\n\t\t\t\tlog err;\n\t\t\t;;\n\t\t\twhen k\n\t\t\t\tis 1\n\t\t\t\t\tlog k;\n\t\t\t\t;;\n\t\t\t;;\n\t\t\tlocked g\n\t\t\t\tlog 1;\n\t\t\t;;\n\t\t;;\n\t[end]\n}\n');
+    const has = (from: number, to: number) => assert.ok(r.folding.some(f => f.startLine === from && f.endLine === to), `${from}-${to} in ${JSON.stringify(r.folding)}`);
+    has(3, 15);   // if outer, past the one-line if inside it
+    has(5, 6);    // if call ... throws
+    has(8, 11);   // when
+    has(9, 10);   // its branch
+    has(13, 14);  // locked
 });
 
 test('call context: argument index for signature help', () => {

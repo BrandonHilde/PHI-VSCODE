@@ -195,6 +195,56 @@ test('use statements and structs', async () => {
     hasScope(t, 'Point', 'entity.name.type.struct');
 });
 
+test('every type of the compiler highlights as a type', async () => {
+    for (const type of ['i64', 'u64', 'f16', 'f32', 'f64', 'chr', 'lock']) {
+        const t = await tokenize(`${type} thing;`);
+        hasScope(t, type, 'storage.type.primitive');
+        hasScope(t, 'thing', 'variable.other.declaration');
+    }
+});
+
+test('enums, interfaces and a struct that has one', async () => {
+    const t = await tokenize('enum.Tool\n{\n\tPENCIL\n}\ninterface.Shape\n{\n\t[Area]\n}\nstruct.Circle foreign has Shape Solid\n{\n}');
+    hasScope(t, 'enum', 'storage.type.enum');
+    hasScope(t, 'Tool', 'entity.name.type.enum');
+    hasScope(t, 'PENCIL', 'constant.other');
+    hasScope(t, 'interface', 'storage.type.interface');
+    hasScope(t, 'Shape', 'entity.name.type.interface');
+    hasScope(t, 'Area', 'entity.name.function');
+    hasScope(t, 'foreign', 'storage.modifier.foreign');
+    hasScope(t, 'has', 'keyword.other.has');
+    hasScope(t, ' Shape Solid', 'entity.other.inherited-class');
+});
+
+test('when, each, threads and errors', async () => {
+    const t = await tokenize("when key\n\tis 'q'\n\t;;\n;;\nwhile each x in list\n;;\nlocked guard\n;;\natomic hits++;\nthrow 'no';\nif call Load: p throws err\n;;\nvolatile u32 ready;\nmethod<str into: int> writer;\nlog list.max;");
+    hasScope(t, 'when', 'keyword.control.conditional', 0);
+    hasScope(t, 'each', 'keyword.control.loop', 4);
+    hasScope(t, 'locked', 'keyword.control.lock', 6);
+    hasScope(t, 'atomic', 'keyword.control.lock', 8);
+    hasScope(t, 'throw', 'keyword.control.exception', 9);
+    hasScope(t, 'throws', 'keyword.control.exception', 10);
+    hasScope(t, 'volatile', 'storage.modifier.volatile', 12);
+    hasScope(t, 'into', 'storage.modifier.into', 13);
+    hasScope(t, 'max', 'support.variable.property.max', 14);
+});
+
+test('systems: class bases, x64 blocks, system calls and outside libraries', async () => {
+    const t = await tokenize("phi.Files:Windows\n{\n}\nx64.Double\n{\n\tmov r8d, [rsp]\n\tret\n}\nlog 'code';\nsys.Read: 3  int fd;\nint id: (sys.GetPid);\nuse 'kernel32.dll' as Kernel32;");
+    hasScope(t, 'Windows', 'support.class.base', 0);
+    hasScope(t, 'x64', 'storage.type.asm', 3);
+    hasScope(t, 'Double', 'entity.name.function.asm', 3);
+    hasScope(t, 'mov', 'keyword.other.instruction', 5);
+    hasScope(t, 'r8d', 'variable.language.register', 5);
+    hasScope(t, 'rsp', 'variable.language.register', 5);
+    hasScope(t, 'log', 'keyword.other.io', 8);
+    hasScope(t, 'sys', 'storage.type.sys', 9);
+    hasScope(t, 'Read', 'support.function.system-call', 9);
+    hasScope(t, 'GetPid', 'support.function.system-call', 10);
+    hasScope(t, "'kernel32.dll'", 'string.quoted.single', 11);
+    hasScope(t, 'Kernel32', 'entity.name.type.class', 11);
+});
+
 test('fenced ```phi blocks in Markdown', async () => {
     const g = await grammar('markdown.phi.codeblock');
     let state = vsctm.INITIAL;

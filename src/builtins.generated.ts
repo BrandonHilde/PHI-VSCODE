@@ -647,6 +647,46 @@ export const builtinFunctions: BuiltinFunction[] = [
         "description": "program: 0 if its window can't be resized, 1 if it can (gui.app's App.SetResizable); 1"
     },
     {
+        "name": "OS.WindowNew",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: another window, which has nothing in it until it's selected and OS.SurfaceOpen is called; its number, or -1 (gui.app's Windows.Open)"
+    },
+    {
+        "name": "OS.WindowSelect",
+        "aliases": [],
+        "parameters": [
+            "window"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: which window the calls for one act on from now on, 0 being its first; 1, or 0 if it has no such window"
+    },
+    {
+        "name": "OS.WindowClose",
+        "aliases": [],
+        "parameters": [
+            "window"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: a window OS.WindowNew made is gone; 1, or 0 if it has no such window (its first ends with the program)"
+    },
+    {
+        "name": "OS.NetNameServer",
+        "aliases": [],
+        "parameters": [],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "program: the address of the system's name server, or 0 if it doesn't know one (net.sockets' Dns asks it)"
+    },
+    {
         "name": "OS.NetAddress",
         "aliases": [],
         "parameters": [],
