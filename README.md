@@ -29,7 +29,7 @@ Language support for [PHI](https://github.com/BrandonHilde/PHI), the language fo
 
 The PHI compiler, built from the PHI repository:
 
-1. Install the .NET 8 SDK, NASM and QEMU.
+1. Install the .NET 10 SDK, NASM and QEMU.
 2. Run `dotnet build PHI.sln` in the PHI repository.
 
 The extension finds the compiler on its own when you open the PHI repository (or a folder inside
@@ -53,7 +53,7 @@ Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `
 
 | Setting | Default | |
 |---|---|---|
-| `phi.compilerPath` | | Path to `phi` / `phi.exe`. Empty: `PATH`, then `Compiler/Phi.Cli/bin/*/net8.0/` in the workspace or its parents. |
+| `phi.compilerPath` | | Path to `phi` / `phi.exe`. Empty: `PATH`, then `Compiler/Phi.Cli/bin/*/net10.0/` in the workspace or its parents. |
 | `phi.libraryPath` | | Path to `lib/phi`, for `use` navigation. Empty: found next to the compiler. |
 | `phi.validate` | `onType` | `onType`, or `off` for no compiler errors. (`onSave` differs only with a `phi` too old to have `phi lsp`, when it runs `phi check` on open and save.) |
 | `phi.validateDelay` | `600` | Only with a `phi` too old to have `phi lsp`: milliseconds to wait after typing before running `phi check`. |

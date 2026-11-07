@@ -189,7 +189,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Path to the `phi` compiler (`phi.exe` on Windows). When empty, the extension looks for `phi` on `PATH`, then for `Compiler/Phi.Cli/bin/*/net8.0/phi.exe` in the workspace and its parent folders."
+          "markdownDescription": "Path to the `phi` compiler (`phi.exe` on Windows). When empty, the extension looks for `phi` on `PATH`, then for `Compiler/Phi.Cli/bin/*/net10.0/phi.exe` in the workspace and its parent folders."
         },
         "phi.libraryPath": {
           "type": "string",

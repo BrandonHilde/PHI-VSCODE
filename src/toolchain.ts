@@ -59,7 +59,7 @@ function expandHome(p: string): string {
 
 /**
  * The compiler to use: the configured path, then `phi` on PATH, then a build of the compiler
- * inside one of the search folders or their parents (Compiler/Phi.Cli/bin/<config>/net8.0).
+ * inside one of the search folders or their parents (Compiler/Phi.Cli/bin/<config>/net10.0).
  */
 export function findCompiler(configured: string | undefined, searchDirs: string[]): string | undefined {
     if (configured && configured.trim()) {
