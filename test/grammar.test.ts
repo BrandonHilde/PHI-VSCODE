@@ -195,6 +195,39 @@ test('use statements and structs', async () => {
     hasScope(t, 'Point', 'entity.name.type.struct');
 });
 
+test('structs that take types: the heading, and variables of one', async () => {
+    const t = await tokenize([
+        'struct.Map<Key Value> has Shown',
+        '{',
+        '\tKey keys[];',
+        '}',
+        'phi.K:Program',
+        '{',
+        '\tnew Stack<int> undo;',
+        '\tPair<u8 Player> both;',
+        '\tnew Map<str Stack<int>> deep;',
+        '\tif total < limit and limit > 3',
+        '\t;;',
+        '}',
+    ].join('\n'));
+    hasScope(t, 'Map', 'entity.name.type.struct', 0);
+    hasScope(t, 'Key', 'entity.name.type.parameter', 0);
+    hasScope(t, 'Value', 'entity.name.type.parameter', 0);
+    hasScope(t, 'has', 'keyword.other.has', 0);
+    hasScope(t, ' Shown', 'entity.other.inherited-class', 0);
+    hasScope(t, 'new', 'keyword.operator.new', 6);
+    hasScope(t, 'Stack', 'entity.name.type.struct', 6);
+    hasScope(t, 'int', 'storage.type', 6);
+    hasScope(t, 'undo', 'variable.other.declaration', 6);
+    hasScope(t, 'Pair', 'entity.name.type.struct', 7);
+    hasScope(t, 'Player', 'entity.name.type.struct', 7);
+    hasScope(t, 'both', 'variable.other.declaration', 7);
+    hasScope(t, 'deep', 'variable.other.declaration', 8);
+    // a comparison is no type: nothing between its < and > is one
+    const limit = t.filter(x => x.line === 9 && x.text.includes('limit'));
+    assert.ok(limit.every(x => !x.scopes.some(s => s.startsWith('entity.name.type'))), JSON.stringify(limit));
+});
+
 test('every type of the compiler highlights as a type', async () => {
     for (const type of ['i64', 'u64', 'f16', 'f32', 'f64', 'chr', 'lock']) {
         const t = await tokenize(`${type} thing;`);

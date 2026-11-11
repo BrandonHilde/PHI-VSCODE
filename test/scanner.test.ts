@@ -78,6 +78,65 @@ asm.Double
     assert.ok(r.folding.some(f => f.kind === 'imports'));
 });
 
+test('scanner: structs that take types, and variables of them', () => {
+    const r = scan(`struct.Stack<Item> has Shown
+{
+\tItem items[];
+\tint added;
+
+\t[Push: Item item;]
+\t\titems++ item;
+\t[end: items.len]
+}
+struct.Pair<First Second>
+{
+\tFirst first;
+}
+phi.K:Program
+{
+\tnew Stack<int> undo;
+\tPair<u8 Stack<int>> both;
+\tptr<Stack<int>> same: addr undo;
+\tint a: 1;
+\tint b: 2;
+\tif a < b and b > a
+\t\tcall undo.Push: a;
+\t;;
+}`);
+    assert.deepEqual(r.symbols.map(s => `${s.kind}:${s.name}`), ['struct:Stack', 'struct:Pair', 'class:K']);
+    assert.equal(r.symbols[0].signature, 'struct.Stack<Item> has Shown');
+    assert.equal(r.symbols[1].signature, 'struct.Pair<First Second>');
+    assert.deepEqual(r.symbols[0].children.map(f => `${f.kind}:${f.name}:${f.type ?? ''}`), ['field:items:Item', 'field:added:int', 'method:Push:']);
+    assert.deepEqual(r.symbols[2].children.map(f => `${f.name}:${f.type}`),
+        ['undo:Stack<int>', 'both:Pair<u8 Stack<int>>', 'same:ptr<Stack<int>>', 'a:int', 'b:int']);
+});
+
+test('resolver: a variable of a struct that takes types is its struct, for its fields and methods', () => {
+    const { text, offset } = cursor(`struct.Stack<Item>
+{
+\tItem items[];
+
+\t[Push: Item item;]
+\t\titems++ item;
+\t[end: items.len]
+}
+phi.K:Program
+{
+\tnew Stack<int> undo;
+\tcall undo.Pu|sh: 4;
+}`);
+    const current: FileScan = { file: 'k.phi', result: scan(text) };
+    const found = resolveAt(current, offset, [], () => undefined);
+    assert.ok(found?.kind === 'symbols' && found.targets.length === 1, JSON.stringify(found?.kind));
+    assert.equal(found.targets[0].symbol.kind, 'method');
+    assert.equal(found.targets[0].symbol.name, 'Push');
+    assert.equal(found.targets[0].symbol.container?.name, 'Stack');
+
+    // and its type's name goes to the struct, from Stack<int> as from Stack
+    const type = resolveAt(current, text.indexOf('Stack<int> undo'), [], () => undefined);
+    assert.ok(type?.kind === 'symbols' && type.targets[0].symbol.kind === 'struct' && type.targets[0].symbol.name === 'Stack');
+});
+
 test('scanner: every .phi file in the PHI repository', { skip: !haveRepo && 'PHI repository not found' }, () => {
     let total = 0;
     for (const file of phiFiles()) {

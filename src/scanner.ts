@@ -294,7 +294,29 @@ export function scan(text: string): ScanResult {
         return { end: at(j - 1).end, next: j - 1 };
     }
 
-    /** a type at token i: int, u8, ptr<Task>, ptr<ptr<u8>>, method<int: int>, Task; returns its text and the token after it */
+    /**
+     * At a '<' (token i): the token after the '>' that closes it, when what's between can only
+     * be types (names, '<', '>', ':', on one line); undefined otherwise, as for a < b.
+     */
+    function typesEnd(i: number): number | undefined {
+        if (!is(i, '<')) return undefined;
+        let depth = 1;
+        let k = i + 1;
+        while (depth > 0 && at(k).kind !== 'eof' && !at(k).startsLine) {
+            const t = at(k);
+            if (t.text === '<') depth++;
+            else if (t.text === '>') depth--;
+            else if (t.text === '>>') depth -= 2;
+            else if (t.kind !== 'ident' && t.text !== ':') return undefined;
+            k++;
+        }
+        return depth === 0 ? k : undefined;
+    }
+
+    /**
+     * a type at token i: int, u8, ptr<Task>, ptr<ptr<u8>>, method<int: int>, Task, and a struct
+     * that takes types with them, Stack<int>; returns its text and the token after it
+     */
     function readType(i: number, allowStruct: boolean): { type: string; next: number } | undefined {
         if ((is(i, 'ptr') || is(i, 'method')) && is(i + 1, '<')) {
             let depth = 1;
@@ -309,7 +331,11 @@ export function scan(text: string): ScanResult {
             return { type: text.slice(at(i).start, at(k - 1).end).replace(/\s+/g, ' '), next: k };
         }
         if (isIdent(i) && primitive.has(at(i).text)) return { type: at(i).text, next: i + 1 };
-        if (allowStruct && isName(i) && /^[A-Z]/.test(at(i).text)) return { type: at(i).text, next: i + 1 };
+        if (allowStruct && isName(i) && /^[A-Z]/.test(at(i).text)) {
+            const end = typesEnd(i + 1);
+            if (end !== undefined) return { type: text.slice(at(i).start, at(end - 1).end).replace(/\s+/g, ' '), next: end };
+            return { type: at(i).text, next: i + 1 };
+        }
         return undefined;
     }
 
@@ -489,13 +515,16 @@ export function scan(text: string): ScanResult {
         // struct.Name, struct.Name foreign has A B, interface.Name, enum.Name
         if ((t.text === 'struct' || t.text === 'interface' || t.text === 'enum') && t.kind === 'ident' && is(i + 1, '.') && isIdent(i + 2)) {
             const name = at(i + 2);
+            // struct.Stack<Item>: the names of the types it takes are part of its heading
+            const taken = t.text === 'struct' ? typesEnd(i + 3) : undefined;
+            const afterName = taken ?? i + 3;
             pendingHeader = {
                 name: name.text, kind: t.text, start: t.start, end: name.end,
                 nameStart: name.start, nameEnd: name.end,
-                signature: text.slice(t.start, t.text === 'struct' ? headerEnd(i + 3) : name.end).replace(/\s+/g, ' '), children: [],
+                signature: text.slice(t.start, t.text === 'struct' ? Math.max(headerEnd(afterName), at(afterName - 1).end) : name.end).replace(/\s+/g, ' '), children: [],
             };
             add(pendingHeader, undefined);
-            i += 2;
+            i = afterName - 1;
             continue;
         }
 

@@ -101,14 +101,18 @@
 
     "struct-header": {
       "name": "meta.struct.phi",
-      "match": "\\b(struct)(\\.)([A-Za-z_]\\w*)(?:\\s+(foreign)\\b)?(?:\\s+(has)((?:\\s+[A-Za-z_]\\w*)+))?",
+      "comment": "struct.Task, struct.Stack<Item>, struct.Circle has Shape",
+      "match": "\\b(struct)(\\.)([A-Za-z_]\\w*)(?:\\s*(<)([A-Za-z_\\s\\d]*)(>))?(?:\\s+(foreign)\\b)?(?:\\s+(has)((?:\\s+[A-Za-z_]\\w*)+))?",
       "captures": {
         "1": { "name": "storage.type.struct.phi" },
         "2": { "name": "punctuation.accessor.phi" },
         "3": { "name": "entity.name.type.struct.phi" },
-        "4": { "name": "storage.modifier.foreign.phi" },
-        "5": { "name": "keyword.other.has.phi" },
-        "6": { "name": "entity.other.inherited-class.phi" }
+        "4": { "name": "punctuation.definition.typeparameters.begin.phi" },
+        "5": { "patterns": [ { "name": "entity.name.type.parameter.phi", "match": "[A-Za-z_]\\w*" } ] },
+        "6": { "name": "punctuation.definition.typeparameters.end.phi" },
+        "7": { "name": "storage.modifier.foreign.phi" },
+        "8": { "name": "keyword.other.has.phi" },
+        "9": { "name": "entity.other.inherited-class.phi" }
       }
     },
 
@@ -343,6 +347,19 @@
                 { "name": "variable.other.declaration.phi", "match": "\\w+" }
               ]
             }
+          }
+        },
+        {
+          "comment": "A variable of a struct that takes types: Stack<int> undo; new Map<str Player> players;",
+          "name": "meta.declaration.variable.phi",
+          "match": "(?:^\\s*|\\b(new)\\s+)([A-Z]\\w*)(<)([\\w\\s<>:]*?)(>)\\s+([A-Za-z_]\\w*)\\s*(?=[:=;\\[])",
+          "captures": {
+            "1": { "name": "keyword.operator.new.phi" },
+            "2": { "name": "entity.name.type.struct.phi" },
+            "3": { "name": "punctuation.definition.typeparameters.begin.phi" },
+            "4": { "patterns": [ { "include": "#primitive-type" }, { "name": "entity.name.type.struct.phi", "match": "\\b[A-Z]\\w*" } ] },
+            "5": { "name": "punctuation.definition.typeparameters.end.phi" },
+            "6": { "name": "variable.other.declaration.phi" }
           }
         },
         {

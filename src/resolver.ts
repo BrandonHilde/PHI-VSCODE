@@ -79,11 +79,12 @@ function enumValues(scans: FileScan[], name: string, enumName: string): Target[]
     return out;
 }
 
-/** The struct a variable's type names: Task, ptr<Task> → Task */
+/** The struct a variable's type names: Task, ptr<Task> → Task; Stack<int>, ptr<Stack<int>> → Stack */
 export function structOf(type: string | undefined): string | undefined {
     if (!type) return undefined;
-    const m = /^ptr<(\w+)>$/.exec(type);
-    const name = m ? m[1] : type;
+    let inner = type;
+    while (/^ptr<.*>$/.test(inner)) inner = inner.slice(4, -1);
+    const name = /^\w+/.exec(inner)?.[0] ?? '';
     return /^[A-Z]/.test(name) ? name : undefined;
 }
 

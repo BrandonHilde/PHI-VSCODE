@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.1
+
+Structs that take types, which PHI now has (`struct.Stack<Item>`, used as `Stack<int>`):
+
+- Highlighting: the heading with the names of its types, and variables of one
+  (`new Stack<int> undo;`, `Pair<u8 Player> both;`, `new Map<str Stack<int>> deep;`). A
+  comparison such as `total < limit and limit > 3` is still a comparison.
+- The outline and hovers show the whole heading, `struct.Map<Key Value> has Shown`.
+- A variable of one is found as a variable, with its whole type (`Stack<int>`,
+  `ptr<Stack<int>>`), and go to definition and completion on its fields and methods go to
+  the struct, as they do for any struct's.
+
 ## 0.3.0
 
 Catches up with the language since 0.1.1, which reserved words last matched:

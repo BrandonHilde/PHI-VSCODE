@@ -2,7 +2,7 @@
   "name": "phi-language",
   "displayName": "PHI Language",
   "description": "Language support for PHI, the systems language for boot sectors, kernels, PHI OS, and Linux and Windows programs: highlighting, compiler diagnostics, IntelliSense, outline, go to definition, and build/run commands.",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "publisher": "phi-lang",
   "license": "Apache-2.0",
   "icon": "images/phi.png",
