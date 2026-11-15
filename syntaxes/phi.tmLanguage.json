@@ -271,7 +271,7 @@
           "end": "\\]",
           "endCaptures": { "0": { "name": "punctuation.definition.method.end.phi" } },
           "patterns": [
-            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|dec|fin|lock|ptr)\\b)" },
+            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock|ptr)\\b)" },
             { "include": "#statements" }
           ]
         }
@@ -299,7 +299,7 @@
 
     "primitive-type": {
       "name": "storage.type.primitive.phi",
-      "match": "\\b(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|dec|fin|lock)\\b"
+      "match": "\\b(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock)\\b"
     },
 
     "type-name": {
@@ -338,7 +338,7 @@
         },
         {
           "name": "meta.declaration.variable.phi",
-          "match": "\\b(int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|dec|fin|lock)\\s+([A-Za-z_]\\w*)\\b(?!\\s*\\.)",
+          "match": "\\b(int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock)\\s+([A-Za-z_]\\w*)\\b(?!\\s*\\.)",
           "captures": {
             "1": { "name": "storage.type.primitive.phi" },
             "2": {

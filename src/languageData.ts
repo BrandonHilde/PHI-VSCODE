@@ -32,8 +32,6 @@ export const primitiveTypes: Record<string, KeywordInfo> = {
         description: 'A 32-bit address of memory holding `T` values. Index it like an array (`p:3`); adding to it moves it by that many *bytes*. Never bounds-checked. A `ptr<u8>` prints as zero-terminated text.',
     },
     var: { syntax: 'var name: value;', description: '`str` if every value is a string, otherwise `int`.' },
-    dec: { syntax: 'dec', description: 'Decimal numbers. **Not supported yet.**' },
-    fin: { syntax: 'fin', description: 'Fixed decimal numbers. **Not supported yet.**' },
 };
 
 export const keywords: Record<string, KeywordInfo> = {

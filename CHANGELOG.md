@@ -1,5 +1,10 @@
 # Changelog
 
+## Not yet released
+
+- `dec` and `fin` aren't types any more (PHI has taken them out: its numbers are whole ones
+  to `i64` and floating ones to `f64`), so they're no longer highlighted or described as ones.
+
 ## 0.3.1
 
 Structs that take types, which PHI now has (`struct.Stack<Item>`, used as `Stack<int>`):
