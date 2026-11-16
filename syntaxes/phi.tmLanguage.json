@@ -271,7 +271,7 @@
           "end": "\\]",
           "endCaptures": { "0": { "name": "punctuation.definition.method.end.phi" } },
           "patterns": [
-            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock|ptr)\\b)" },
+            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock|ptr|vec)\\b)" },
             { "include": "#statements" }
           ]
         }
@@ -325,6 +325,18 @@
 
     "declaration": {
       "patterns": [
+        {
+          "name": "meta.declaration.vector.phi",
+          "comment": "vec<f32> v: 1.0;  several numbers worked on at once",
+          "match": "\\b(vec)\\s*(<)\\s*([A-Za-z_]\\w*)\\s*(>)(?:\\s*([A-Za-z_]\\w*))?",
+          "captures": {
+            "1": { "name": "storage.type.vec.phi" },
+            "2": { "name": "punctuation.definition.generic.begin.phi" },
+            "3": { "patterns": [ { "include": "#type-name" } ] },
+            "4": { "name": "punctuation.definition.generic.end.phi" },
+            "5": { "name": "variable.other.declaration.phi" }
+          }
+        },
         {
           "name": "meta.declaration.pointer.phi",
           "match": "\\b(ptr)\\s*(<)\\s*([A-Za-z_]\\w*)\\s*(>)(?:\\s*([A-Za-z_]\\w*))?",

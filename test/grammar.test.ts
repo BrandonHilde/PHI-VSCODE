@@ -117,6 +117,13 @@ test('declarations, types and pointers', async () => {
     hasScope(t, 'new', 'keyword.operator.new');
 });
 
+test('vectors', async () => {
+    const t = await tokenize('vec<f32> v: 1.0 2.0 3.0 4.0;\nptr<vec<u8>> blocks: p as ptr<vec<u8>>;');
+    hasScope(t, 'vec', 'storage.type.vec');
+    hasScope(t, 'f32', 'storage.type.primitive');
+    hasScope(t, 'v', 'variable.other.declaration');
+});
+
 test('control flow and ;; block ends', async () => {
     const t = await tokenize('if score > best and lives above 0\n\tlog x;\n;;\nelse\n;;\nwhile int i: 0; i < days.len; i++;\n;;');
     hasScope(t, 'if', 'keyword.control.conditional');

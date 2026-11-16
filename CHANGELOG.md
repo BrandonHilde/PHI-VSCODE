@@ -2,6 +2,8 @@
 
 ## Not yet released
 
+- `vec<T>`, PHI's vectors (`vec<f32> v: 1.0 2.0 3.0 4.0;`), is highlighted as a type, as
+  `ptr<T>` is.
 - `dec` and `fin` aren't types any more (PHI has taken them out: its numbers are whole ones
   to `i64` and floating ones to `f64`), so they're no longer highlighted or described as ones.
 
