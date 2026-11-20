@@ -209,13 +209,16 @@ class Features implements
             case 'use': {
                 const md = new vscode.MarkdownString();
                 md.appendCodeblock(`use ${r.path};`, 'phi');
-                if (r.target) {
+                if (r.target && this.ws.isVendorFile(r.target) && !this.ws.isLibraryFile(r.target)) {
+                    const about = this.ws.vendorModules().find(m => this.ws.sameFile(m.file, r.target!))?.about;
+                    md.appendMarkdown(`A C library that comes with PHI${about ? `: ${about}` : ''}\n\n*vendor/${path.relative(this.ws.vendor!, r.target).replace(/\\/g, '/')}*`);
+                } else if (r.target) {
                     const lib = this.ws.isLibraryFile(r.target);
                     md.appendMarkdown(lib ? `Standard library: ${standardLibrary[r.path] ?? ''}\n\n*lib/phi/${path.relative(this.ws.library!, r.target).replace(/\\/g, '/')}*` : `*${vscode.workspace.asRelativePath(r.target)}*`);
                 } else if (standardLibrary[r.path]) {
                     md.appendMarkdown(`Standard library: ${standardLibrary[r.path]}`);
                 } else {
-                    md.appendMarkdown(`$(warning) Can't find \`${r.path.replace(/\./g, '/')}.phi\` next to this file or in the standard library.`);
+                    md.appendMarkdown(`$(warning) Can't find \`${r.path.replace(/\./g, '/')}.phi\` next to this file, in the standard library or in PHI's vendor folder.`);
                     md.supportThemeIcons = true;
                 }
                 return new vscode.Hover(md, range);
@@ -451,6 +454,7 @@ class Features implements
         const lib = this.ws.libraryModules();
         for (const m of lib) add(m.name, 'standard library', standardLibrary[m.name]);
         if (!lib.length) for (const [name, d] of Object.entries(standardLibrary)) add(name, 'standard library', d);
+        for (const m of this.ws.vendorModules()) add(m.name, 'a C library that comes with PHI', m.about);
         return [...items.values()];
     }
 

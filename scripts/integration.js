@@ -3,7 +3,7 @@
 //
 //   node scripts/integration.js [path/to/PHI] [path/to/Code.exe]
 //
-// Defaults: $PHI_ROOT or ../../Libraries/PHI, and $VSCODE_PATH or the `code` on PATH.
+// Defaults: $PHI_ROOT, ../../Libraries/PHI or ../PHI, and $VSCODE_PATH or the `code` on PATH.
 
 const cp = require('child_process');
 const fs = require('fs');
@@ -11,14 +11,17 @@ const os = require('os');
 const path = require('path');
 
 const ext = path.resolve(__dirname, '..');
-const phi = process.argv[2] || process.env.PHI_ROOT || path.resolve(ext, '../../Libraries/PHI');
+const places = [path.resolve(ext, '../../Libraries/PHI'), path.resolve(ext, '../PHI')];
+const phi = process.argv[2] || process.env.PHI_ROOT || places.find(p => fs.existsSync(path.join(p, 'lib', 'phi'))) || places[0];
 
 function findCode() {
     if (process.argv[3]) return process.argv[3];
     if (process.env.VSCODE_PATH) return process.env.VSCODE_PATH;
     const which = cp.spawnSync(process.platform === 'win32' ? 'where' : 'which', ['code'], { encoding: 'utf8' });
-    const cli = (which.stdout || '').split(/\r?\n/).find(Boolean);
-    if (!cli) throw new Error("can't find VS Code: pass its path or set VSCODE_PATH");
+    const found = (which.stdout || '').split(/\r?\n/).find(Boolean);
+    if (!found) throw new Error("can't find VS Code: pass its path or set VSCODE_PATH");
+    // (the `code` on PATH can be a link to the one in VS Code's own folder)
+    const cli = fs.realpathSync(found);
     // bin/code -> the executable next to the bin folder
     const dir = path.dirname(path.dirname(cli));
     for (const name of ['Code.exe', 'code', 'Code - Insiders.exe']) {

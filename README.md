@@ -1,12 +1,12 @@
 # PHI for Visual Studio Code
 
-Language support for [PHI](https://github.com/BrandonHilde/PHI), the language for boot sectors, 32-bit kernels, PHI OS, and programs for Linux and Windows.
+Language support for [PHI](https://github.com/BrandonHilde/PHI), the language for boot sectors, 32-bit kernels, PHI OS, and programs for Linux, Windows and macOS. It's up to date with PHI 1.0.
 
 ## Features
 
 - **Syntax highlighting** that follows the compiler's own rules: `#` comments, a lone `#` that opens
   a block comment, `'hasn't'`-style strings, `;;` block ends, `[Method: ...]` / `[end: value]`,
-  and x86 highlighting inside `asm.Name { }` and `x64.Name { }` blocks, including `{variable}` and `{CONSTANT}`.
+  and assembly highlighting inside `asm.Name { }`, `x64.Name { }` and `arm.Name { }` blocks, including `{variable}` and `{CONSTANT}`.
   `` ```phi `` code blocks in Markdown are highlighted too.
 - **Errors as you type**, from `phi lsp`, the compiler's language server, in the Problems panel and
   as squiggles. Unsaved text counts, in the file and in the modules you have open. A module is
@@ -14,9 +14,10 @@ Language support for [PHI](https://github.com/BrandonHilde/PHI), the language fo
 - **Hovers** for your methods, variables, structs and constants (with the comments above them),
   every built-in `OS.` / `Bootloader.` function, `Colors`, keywords and types.
 - **Go to definition**, **find references**, **highlight** and **rename** across files, following
-  `use` the way the compiler does. Ctrl+click a `use drivers.vga_text;` path to open the file.
+  `use` the way the compiler does. Ctrl+click a `use drivers.vga_text;` path to open the file;
+  `use vendor.raylib;` opens the module in PHI's vendor folder.
 - **Completion**: `OS.` and `Bootloader.` built-ins, `Colors.`, `Class.` members, struct fields,
-  `use` paths from the standard library and your folders, locals, keywords and snippets.
+  `use` paths from the standard library, the vendor folder and your folders, locals, keywords and snippets.
 - **Signature help** for space-separated arguments: `call OS.DrawRectangle: x y |width| height color`.
 - **Outline**, breadcrumbs, **workspace symbols** (Ctrl+T) and **folding** for classes, structs,
   methods, `if`/`while` blocks, asm blocks and comments.
@@ -27,27 +28,34 @@ Language support for [PHI](https://github.com/BrandonHilde/PHI), the language fo
 
 ## Requirements
 
-The PHI compiler, built from the PHI repository:
+The PHI compiler, one of two ways:
 
-1. Install the .NET 10 SDK, NASM and QEMU.
-2. Run `dotnet build PHI.sln` in the PHI repository.
+- **A release**: unzip `phi-1.0.0-linux-x64.zip`, `-windows-x64.zip` or `-macos-arm64.zip` from
+  [PHI's releases](https://github.com/BrandonHilde/PHI/releases) anywhere, and put its folder on
+  your `PATH` (or point `phi.compilerPath` at the `phi` in it). The standard library and the
+  vendor folder beside it are found from there.
+- **From source**: install the .NET 10 SDK, then run `dotnet build PHI.sln` in the PHI repository.
+  The extension finds that compiler on its own when you open the PHI repository (or a folder
+  inside it).
 
-The extension finds the compiler on its own when you open the PHI repository (or a folder inside
-it). Otherwise put `phi` on your `PATH`, run **PHI: Locate Compiler…**, or set `phi.compilerPath`.
+Otherwise run **PHI: Locate Compiler…**, or set `phi.compilerPath`.
 Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `phi.nasmPath` and
 `phi.qemuPath`.
 
 ## Install
 
 1. Install the PHI compiler (see [Requirements](#requirements)).
-2. Build the extension package. The `.vsix` isn't in git, so build it from source (needs Node.js):
+2. Build the extension package. The `.vsix` isn't in git, so build it from source (needs Node.js 18 or later):
 
    ```
-   npm install
-   npm run package
+   ./build.sh          # Linux and macOS
+   build.bat           # Windows
    ```
 
-3. Install the package with `code --install-extension phi-language-0.2.0.vsix`, or open the Extensions view in VS Code, choose `…` → **Install from VSIX…**, and pick the file.
+   Either installs what it needs, compiles, runs the tests and writes `phi-language-<version>.vsix`
+   here. `--skip-tests` leaves the tests out, and `--install` installs the package into VS Code too.
+
+3. Install the package with `code --install-extension phi-language-<version>.vsix`, or open the Extensions view in VS Code, choose `…` → **Install from VSIX…**, and pick the file.
 
 ## Settings
 
@@ -84,25 +92,39 @@ Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `
 }
 ```
 
+A program for Linux, Windows or macOS is built with `--target` (`linux`, `linux64`, `windows`,
+`windows64`, `macos`), which a task gives in its `args`:
+
+```json
+{ "type": "phi", "command": "run", "file": "${file}", "args": ["--target", "linux64"], "problemMatcher": ["$phi"] }
+```
+
 ## Developing the extension
 
-The F5 launch config and the tests expect the PHI repository beside this one:
+The tests look for the PHI repository at `$PHI_ROOT`, then in either of these places:
 
 ```
 <parent>/
 ├── Libraries/PHI          the PHI repository
 └── Projects/PHI-VSCODE    this repository
+
+<parent>/
+├── PHI                    the PHI repository
+└── PHI-VSCODE             this repository
 ```
 
 ```
 npm install
-npm test                    # grammar, scanner, resolver and compiler tests (reads ../../Libraries/PHI)
+npm test                    # grammar, scanner, resolver and compiler tests (reads the PHI repository)
 npm run test:integration    # every feature, inside a real VS Code with a throwaway profile
 npm run sync-builtins       # regenerate the built-in function table from the compiler's Builtins.cs
 npm run package             # make phi-language-<version>.vsix
+./build.sh                  # all of it: install, compile, test, package (build.bat on Windows)
 ```
 
 Press F5 in this folder to start an Extension Development Host with the extension loaded. F5 compiles
 the extension first, so run `npm install` beforehand (`out/` isn't in git). The host opens the PHI
 repository as its folder, so the extension activates and finds the compiler there.
-`PHI_ROOT` points the tests at a PHI repository somewhere else.
+`PHI_ROOT` points the tests at a PHI repository somewhere else. The tests that compare the
+extension with the compiler (its reserved words, its class bases, every `.phi` file it has) are how
+a new PHI is caught up with: run them against it, and `npm run sync-builtins`.

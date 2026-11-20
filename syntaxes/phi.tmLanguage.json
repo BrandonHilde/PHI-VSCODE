@@ -42,7 +42,7 @@
       "end": "'(?![\\p{L}\\p{N}])",
       "endCaptures": { "0": { "name": "punctuation.definition.string.end.phi" } },
       "patterns": [
-        { "name": "constant.character.escape.phi", "match": "\\\\(?:[rnt0\\\\']|x[0-9A-Fa-f]{2})" },
+        { "name": "constant.character.escape.phi", "match": "\\\\(?:[rnt0\\\\']|x[0-9A-Fa-f]{2}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})" },
         { "name": "invalid.illegal.unknown-escape.phi", "match": "\\\\." }
       ]
     },
@@ -59,12 +59,12 @@
     "use": {
       "patterns": [
         {
-          "comment": "use 'kernel32.dll' as Kernel32; a library of outside functions",
+          "comment": "use 'kernel32.dll' as Kernel32; a library of outside functions, with a file's name for each system: use 'zlib1.dll' 'libz.so.1' as Z;",
           "name": "meta.use.library.phi",
-          "match": "\\b(use)\\s+('[^']*')\\s+(as)\\s+([A-Za-z_]\\w*)\\s*(;)?",
+          "match": "\\b(use)\\s+('[^']*'(?:\\s+'[^']*')*)\\s+(as)\\s+([A-Za-z_]\\w*)\\s*(;)?",
           "captures": {
             "1": { "name": "keyword.control.import.phi" },
-            "2": { "name": "string.quoted.single.phi" },
+            "2": { "patterns": [ { "name": "string.quoted.single.phi", "match": "'[^']*'" } ] },
             "3": { "name": "keyword.operator.cast.phi" },
             "4": { "name": "entity.name.type.class.phi" },
             "5": { "name": "punctuation.terminator.statement.phi" }
@@ -92,7 +92,7 @@
         "4": { "name": "punctuation.separator.inheritance.phi" },
         "5": {
           "patterns": [
-            { "name": "support.class.base.phi", "match": "\\b(?:Bootloader|OS|Kernel|Program|Library|Linux|Linux32|Linux64|Windows|PhiOS)\\b" },
+            { "name": "support.class.base.phi", "match": "\\b(?:Bootloader|OS|Kernel|Program|Library|Linux|Linux32|Linux64|Windows|MacOS|PhiOS)\\b" },
             { "name": "entity.other.inherited-class.phi", "match": "\\w+" }
           ]
         }
@@ -101,19 +101,35 @@
 
     "struct-header": {
       "name": "meta.struct.phi",
-      "comment": "struct.Task, struct.Stack<Item>, struct.Circle has Shape",
-      "match": "\\b(struct)(\\.)([A-Za-z_]\\w*)(?:\\s*(<)([A-Za-z_\\s\\d]*)(>))?(?:\\s+(foreign)\\b)?(?:\\s+(has)((?:\\s+[A-Za-z_]\\w*)+))?",
+      "comment": "struct.Task, struct.Stack<Item>, struct.Sorted<Item has Ranked>, struct.Circle has Shape, struct.Texture2D is Texture;",
+      "match": "\\b(struct)(\\.)([A-Za-z_]\\w*)(?:\\s*(<)([A-Za-z_\\s\\d]*)(>))?(?:\\s+(foreign)\\b)?(?:\\s+(has)((?:\\s+[A-Za-z_]\\w*)+))?(?:\\s+(is)\\s+([A-Za-z_]\\w*))?",
       "captures": {
         "1": { "name": "storage.type.struct.phi" },
         "2": { "name": "punctuation.accessor.phi" },
         "3": { "name": "entity.name.type.struct.phi" },
         "4": { "name": "punctuation.definition.typeparameters.begin.phi" },
-        "5": { "patterns": [ { "name": "entity.name.type.parameter.phi", "match": "[A-Za-z_]\\w*" } ] },
+        "5": { "patterns": [ { "include": "#type-parameters" } ] },
         "6": { "name": "punctuation.definition.typeparameters.end.phi" },
         "7": { "name": "storage.modifier.foreign.phi" },
         "8": { "name": "keyword.other.has.phi" },
-        "9": { "name": "entity.other.inherited-class.phi" }
+        "9": { "name": "entity.other.inherited-class.phi" },
+        "10": { "name": "keyword.operator.assignment.phi" },
+        "11": { "name": "entity.name.type.struct.phi" }
       }
+    },
+
+    "type-parameters": {
+      "comment": "The names of the types a struct or a method takes: Item, Key Value, Item has Ranked",
+      "patterns": [
+        {
+          "match": "\\b(has)\\s+([A-Za-z_]\\w*)",
+          "captures": {
+            "1": { "name": "keyword.other.has.phi" },
+            "2": { "name": "entity.other.inherited-class.phi" }
+          }
+        },
+        { "name": "entity.name.type.parameter.phi", "match": "[A-Za-z_]\\w*" }
+      ]
     },
 
     "interface-header": {
@@ -263,15 +279,19 @@
         },
         {
           "name": "meta.method.declaration.phi",
-          "begin": "^\\s*(\\[)\\s*([A-Za-z_]\\w*)\\s*(?=[:\\]])",
+          "comment": "[Area], [Grow: int by;], and a method that takes types: [Largest<Item>: Item items[];]",
+          "begin": "^\\s*(\\[)\\s*([A-Za-z_]\\w*)(?:(<)([A-Za-z_\\s\\d]*)(>))?\\s*(?=[:\\]])",
           "beginCaptures": {
             "1": { "name": "punctuation.definition.method.begin.phi" },
-            "2": { "name": "entity.name.function.phi" }
+            "2": { "name": "entity.name.function.phi" },
+            "3": { "name": "punctuation.definition.typeparameters.begin.phi" },
+            "4": { "patterns": [ { "include": "#type-parameters" } ] },
+            "5": { "name": "punctuation.definition.typeparameters.end.phi" }
           },
           "end": "\\]",
           "endCaptures": { "0": { "name": "punctuation.definition.method.end.phi" } },
           "patterns": [
-            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock|ptr|vec)\\b)" },
+            { "name": "punctuation.separator.parameters.phi", "match": "(?<=\\w)\\s*:(?=\\s*(?:int|i32|u32|i64|u64|lng|ulng|isz|usz|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock|ptr|vec|method)\\b)" },
             { "include": "#statements" }
           ]
         }
@@ -287,6 +307,7 @@
         { "include": "#control" },
         { "include": "#system-call" },
         { "include": "#call" },
+        { "include": "#call-types" },
         { "include": "#keywords" },
         { "include": "#builtins" },
         { "include": "#numbers" },
@@ -299,7 +320,7 @@
 
     "primitive-type": {
       "name": "storage.type.primitive.phi",
-      "match": "\\b(?:int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock)\\b"
+      "match": "\\b(?:int|i32|u32|i64|u64|lng|ulng|isz|usz|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock)\\b"
     },
 
     "type-name": {
@@ -339,6 +360,21 @@
         },
         {
           "name": "meta.declaration.pointer.phi",
+          "comment": "A pointer to a pointer or to a vector: ptr<ptr<u8>> rows; ptr<vec<u8>> blocks;",
+          "match": "\\b(ptr)\\s*(<)\\s*(ptr|vec)\\s*(<)\\s*([A-Za-z_]\\w*)\\s*(>)\\s*(>)(?:\\s*([A-Za-z_]\\w*))?",
+          "captures": {
+            "1": { "name": "storage.type.ptr.phi" },
+            "2": { "name": "punctuation.definition.generic.begin.phi" },
+            "3": { "name": "storage.type.ptr.phi" },
+            "4": { "name": "punctuation.definition.generic.begin.phi" },
+            "5": { "patterns": [ { "include": "#type-name" } ] },
+            "6": { "name": "punctuation.definition.generic.end.phi" },
+            "7": { "name": "punctuation.definition.generic.end.phi" },
+            "8": { "name": "variable.other.declaration.phi" }
+          }
+        },
+        {
+          "name": "meta.declaration.pointer.phi",
           "match": "\\b(ptr)\\s*(<)\\s*([A-Za-z_]\\w*)\\s*(>)(?:\\s*([A-Za-z_]\\w*))?",
           "captures": {
             "1": { "name": "storage.type.ptr.phi" },
@@ -350,7 +386,7 @@
         },
         {
           "name": "meta.declaration.variable.phi",
-          "match": "\\b(int|i32|u32|i64|u64|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock)\\s+([A-Za-z_]\\w*)\\b(?!\\s*\\.)",
+          "match": "\\b(int|i32|u32|i64|u64|lng|ulng|isz|usz|i16|u16|i8|u8|f16|f32|f64|byt|bln|chr|str|var|lock)\\s+([A-Za-z_]\\w*)\\b(?!\\s*\\.)",
           "captures": {
             "1": { "name": "storage.type.primitive.phi" },
             "2": {
@@ -369,7 +405,7 @@
             "1": { "name": "keyword.operator.new.phi" },
             "2": { "name": "entity.name.type.struct.phi" },
             "3": { "name": "punctuation.definition.typeparameters.begin.phi" },
-            "4": { "patterns": [ { "include": "#primitive-type" }, { "name": "entity.name.type.struct.phi", "match": "\\b[A-Z]\\w*" } ] },
+            "4": { "patterns": [ { "include": "#primitive-type" }, { "name": "storage.type.ptr.phi", "match": "\\b(?:ptr|vec)\\b" }, { "name": "punctuation.definition.generic.phi", "match": "[<>]" }, { "name": "entity.name.type.struct.phi", "match": "\\b[A-Z]\\w*" } ] },
             "5": { "name": "punctuation.definition.typeparameters.end.phi" },
             "6": { "name": "variable.other.declaration.phi" }
           }
@@ -442,6 +478,16 @@
       ]
     },
 
+    "call-types": {
+      "comment": "The types a call gives a method that takes them: (Lists.Largest<int>: scores), (counts.Sum<i64>), call Lists.Swap<int>: addr a addr b; Written with no space, after a method's name, so a < b and b > c is still two comparisons.",
+      "match": "(?<=\\w)(<)([A-Za-z_][\\w\\s<>]*?)(>)(?=\\s*[:;)\\]]|\\s*$)",
+      "captures": {
+        "1": { "name": "punctuation.definition.typeparameters.begin.phi" },
+        "2": { "patterns": [ { "include": "#primitive-type" }, { "name": "storage.type.ptr.phi", "match": "\\b(?:ptr|vec)\\b" }, { "name": "punctuation.definition.generic.phi", "match": "[<>]" }, { "name": "entity.name.type.phi", "match": "[A-Za-z_]\\w*" } ] },
+        "3": { "name": "punctuation.definition.typeparameters.end.phi" }
+      }
+    },
+
     "keywords": {
       "patterns": [
         { "name": "keyword.other.io.phi", "match": "\\b(?:log|debug|ask)\\b" },
@@ -452,7 +498,7 @@
         { "name": "storage.type.method.phi", "match": "\\bmethod\\b" },
         { "name": "keyword.operator.port.phi", "match": "\\b(?:in|inw|ind)\\b" },
         { "name": "keyword.operator.logical.phi", "match": "\\b(?:and|or|not)\\b" },
-        { "name": "keyword.operator.comparison.phi", "match": "\\b(?:is|below|above|atmost|atleast|has)\\b" },
+        { "name": "keyword.operator.comparison.phi", "match": "\\b(?:is|below|above|atmost|atleast|has|exists)\\b" },
         { "name": "constant.language.boolean.phi", "match": "\\b(?:true|false)\\b" },
         { "name": "keyword.control.import.phi", "match": "\\buse\\b" },
         { "name": "storage.modifier.const.phi", "match": "\\bconst\\b" },

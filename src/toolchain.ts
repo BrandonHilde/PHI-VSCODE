@@ -121,10 +121,46 @@ export function findLibrary(configured: string | undefined, compiler: string | u
 }
 
 /**
- * Resolves `use a.b;` written in `fromFile` the way the compiler does: next to that file, next
- * to the main program, then in the standard library.
+ * The vendor folder: the C libraries that come with PHI, each with a module that declares it
+ * (use vendor.raylib;). As the compiler finds it: the folder PHI_VENDOR names, or the first one
+ * named vendor, with a README.md, beside the compiler or in a folder above it.
  */
-export function resolveUse(dotted: string, fromFile: string, library: string | undefined, mainFile?: string): string | undefined {
+export function findVendor(compiler: string | undefined, env: NodeJS.ProcessEnv = process.env): string | undefined {
+    const named = env.PHI_VENDOR;
+    if (named) return isDirectory(named) ? path.resolve(named) : undefined;
+    if (!compiler) return undefined;
+    for (const dir of ancestors(path.dirname(compiler))) {
+        const vendor = path.join(dir, 'vendor');
+        if (isFile(path.join(vendor, 'README.md'))) return vendor;
+    }
+    return undefined;
+}
+
+/** The vendor folder's libraries, by the name a program uses each by: vendor.raylib, with what its package.json says of it. */
+export function vendorModules(vendor: string | undefined): { name: string; file: string; about?: string }[] {
+    if (!vendor) return [];
+    const out: { name: string; file: string; about?: string }[] = [];
+    for (const name of safeReaddir(vendor).sort()) {
+        const file = path.join(vendor, name, name + '.phi');
+        if (!isFile(file)) continue;
+        let about: string | undefined;
+        try {
+            const pack = JSON.parse(fs.readFileSync(path.join(vendor, name, 'package.json'), 'utf8'));
+            if (typeof pack.about === 'string') about = [pack.name, pack.version].filter(p => typeof p === 'string').join(' ') + ': ' + pack.about;
+        } catch {
+            // a library with nothing said of it
+        }
+        out.push({ name: 'vendor.' + name, file, about });
+    }
+    return out;
+}
+
+/**
+ * Resolves `use a.b;` written in `fromFile` the way the compiler does: next to that file, next
+ * to the main program, then in the standard library, and last, for `use vendor.NAME;`, in the
+ * vendor folder (vendor/NAME/NAME.phi, or vendor/NAME/PART.phi for `use vendor.NAME.PART;`).
+ */
+export function resolveUse(dotted: string, fromFile: string, library: string | undefined, mainFile?: string, vendor?: string): string | undefined {
     const relative = dotted.split('.').join(path.sep) + '.phi';
     for (const near of [fromFile, mainFile]) {
         if (!near || (library && isInside(near, library))) continue;
@@ -134,6 +170,12 @@ export function resolveUse(dotted: string, fromFile: string, library: string | u
     if (library) {
         const lib = path.join(library, relative);
         if (isFile(lib)) return lib;
+    }
+    if (vendor && dotted.startsWith('vendor.')) {
+        let parts = dotted.slice('vendor.'.length).split('.');
+        if (parts.length === 1) parts = [parts[0], parts[0]];
+        const vendored = path.join(vendor, ...parts) + '.phi';
+        if (isFile(vendored)) return vendored;
     }
     return undefined;
 }

@@ -6,7 +6,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { FileScan } from './resolver';
 import { PhiSymbol, ScanResult, scan } from './scanner';
-import { findCompiler, findLibrary, isInside, resolveUse } from './toolchain';
+import { findCompiler, findLibrary, findVendor, isInside, resolveUse, vendorModules } from './toolchain';
 
 const excludeGlob = '{**/build/**,**/node_modules/**,**/.git/**,**/bin/**,**/obj/**}';
 
@@ -28,6 +28,8 @@ function register(fileScan: FileScan): FileScan {
 export class PhiWorkspace implements vscode.Disposable {
     compiler: string | undefined;
     library: string | undefined;
+    /** the vendor folder: the C libraries that come with PHI (use vendor.raylib;) */
+    vendor: string | undefined;
 
     private readonly cache = new Map<string, { stamp: string; scan: FileScan }>();
     private fileList: Promise<string[]> | undefined;
@@ -62,11 +64,14 @@ export class PhiWorkspace implements vscode.Disposable {
         ];
         const compiler = findCompiler(config.get<string>('compilerPath'), searchDirs);
         const library = findLibrary(config.get<string>('libraryPath'), compiler, searchDirs);
-        if (compiler !== this.compiler || library !== this.library) {
+        const vendor = findVendor(compiler);
+        if (compiler !== this.compiler || library !== this.library || vendor !== this.vendor) {
             this.compiler = compiler;
             this.library = library;
+            this.vendor = vendor;
             this.output.appendLine(`compiler: ${compiler ?? '(not found)'}`);
             this.output.appendLine(`library:  ${library ?? '(not found)'}`);
+            this.output.appendLine(`vendor:   ${vendor ?? '(not found)'}`);
             this.changed.fire();
         }
     }
@@ -122,7 +127,16 @@ export class PhiWorkspace implements vscode.Disposable {
     }
 
     resolveUse(dotted: string, fromFile: string): string | undefined {
-        return resolveUse(dotted, fromFile, this.library);
+        return resolveUse(dotted, fromFile, this.library, undefined, this.vendor);
+    }
+
+    /** `use` names for the libraries of the vendor folder: vendor.raylib, ... */
+    vendorModules(): { name: string; file: string; about?: string }[] {
+        return vendorModules(this.vendor);
+    }
+
+    isVendorFile(file: string): boolean {
+        return !!this.vendor && isInside(file, this.vendor);
     }
 
     /** The files a file can see through `use`, directly or through other used files. */

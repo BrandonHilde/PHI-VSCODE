@@ -1,7 +1,7 @@
 {
   "name": "phi-language",
   "displayName": "PHI Language",
-  "description": "Language support for PHI, the systems language for boot sectors, kernels, PHI OS, and Linux and Windows programs: highlighting, compiler diagnostics, IntelliSense, outline, go to definition, and build/run commands.",
+  "description": "Language support for PHI, the systems language for boot sectors, kernels, PHI OS, and Linux, Windows and macOS programs: highlighting, compiler diagnostics, IntelliSense, outline, go to definition, and build/run commands.",
   "version": "0.3.1",
   "publisher": "phi-lang",
   "license": "Apache-2.0",
@@ -189,7 +189,7 @@
           "type": "string",
           "default": "",
           "scope": "machine-overridable",
-          "markdownDescription": "Path to the `phi` compiler (`phi.exe` on Windows). When empty, the extension looks for `phi` on `PATH`, then for `Compiler/Phi.Cli/bin/*/net10.0/phi.exe` in the workspace and its parent folders."
+          "markdownDescription": "Path to the `phi` compiler (`phi.exe` on Windows). When empty, the extension looks for `phi` on `PATH`, then for `Compiler/Phi.Cli/bin/*/net10.0/phi` (`phi.exe`) in the workspace and its parent folders. A release's `phi` has its standard library and vendor folder beside it."
         },
         "phi.libraryPath": {
           "type": "string",

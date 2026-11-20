@@ -82,6 +82,14 @@ test('escapes, valid and unknown', async () => {
     hasScope(t, '\\q', 'invalid.illegal');
 });
 
+test('escapes: a character by its number, \\u and \\U', async () => {
+    const t = await tokenize("log 'caf\\u00E9 \\U0001F600 \\u12 caf\u00E9';");
+    hasScope(t, '\\u00E9', 'constant.character.escape');
+    hasScope(t, '\\U0001F600', 'constant.character.escape');
+    hasScope(t, '\\u', 'invalid.illegal');
+    assert.ok(!t.some(x => x.text.includes('\u00E9') && x.scopes.some(s => s.startsWith('invalid'))), 'a character typed as it is');
+});
+
 test('comments: line, trailing, and block comments opened by a lone #', async () => {
     const t = await tokenize("# top\nlog 'one'; # trailing\nstr h: '# not a comment';\n#\n\tlog 'inside';\n#\nlog 'after';\nx is 1; #\n  still comment\n# closing remark\nlog 'code';");
     hasScope(t, ' top', 'comment.line');
@@ -236,7 +244,7 @@ test('structs that take types: the heading, and variables of one', async () => {
 });
 
 test('every type of the compiler highlights as a type', async () => {
-    for (const type of ['i64', 'u64', 'f16', 'f32', 'f64', 'chr', 'lock']) {
+    for (const type of ['i64', 'u64', 'lng', 'ulng', 'isz', 'usz', 'f16', 'f32', 'f64', 'chr', 'lock']) {
         const t = await tokenize(`${type} thing;`);
         hasScope(t, type, 'storage.type.primitive');
         hasScope(t, 'thing', 'variable.other.declaration');
@@ -285,6 +293,48 @@ test('systems: class bases, x64 blocks, system calls and outside libraries', asy
     hasScope(t, 'Kernel32', 'entity.name.type.class', 11);
 });
 
+test('PHI 1.0: macOS, exists, has ... when, answers that fail, and a library named for each system', async () => {
+    const t = await tokenize("phi.Windows:MacOS\n{\n}\nuse 'zlib1.dll' '/usr/lib/libz.1.dylib' 'libz.so.1' as Z;\nuse vendor.raylib;\nif place exists\n;;\nif players has p when p.score is 0\n;;\n[Read: str path;]\n[end: count throws below 0]\nstruct.Texture2D is Texture;\nx^^ 3;\nptr<vec<u8>> blocks: pixels as ptr<vec<u8>>;");
+    hasScope(t, 'MacOS', 'support.class.base', 0);
+    for (const file of ["'zlib1.dll'", "'/usr/lib/libz.1.dylib'", "'libz.so.1'"]) hasScope(t, file, 'string.quoted.single', 3);
+    hasScope(t, 'Z', 'entity.name.type.class', 3);
+    hasScope(t, 'vendor.raylib', 'entity.name.namespace', 4);
+    hasScope(t, 'exists', 'keyword.operator.comparison', 5);
+    hasScope(t, 'has', 'keyword.operator.comparison', 7);
+    hasScope(t, 'when', 'keyword.control.conditional', 7);
+    hasScope(t, 'throws', 'keyword.control.exception', 10);
+    hasScope(t, 'below', 'keyword.operator.comparison', 10);
+    hasScope(t, 'Texture2D', 'entity.name.type.struct', 11);
+    hasScope(t, 'is', 'keyword.operator.assignment', 11);
+    hasScope(t, 'Texture', 'entity.name.type.struct', 11);
+    hasScope(t, '^^', 'keyword.operator.assignment.compound', 12);
+    hasScope(t, 'ptr', 'storage.type.ptr', 13);
+    hasScope(t, 'vec', 'storage.type.ptr', 13);
+    hasScope(t, 'blocks', 'variable.other.declaration', 13);
+    assert.ok(!t.some(x => x.line === 13 && x.scopes.some(s => s.startsWith('keyword.operator.comparison'))), "a type's < and > aren't comparisons");
+});
+
+test('methods that take types: the heading, a type that must have an interface, and calls', async () => {
+    const t = await tokenize("[Largest<Item>: Item items[];]\n[end]\n[Higher<Item has Ranked>: Item a; Item b;]\n[end]\n[Sum<To>]\n[end]\nlog (Lists.Largest<int>: scores) (counts.Sum<i64>);\ncall Lists.Swap<int>: addr first addr second;\nint wide: (Lists.Wider<u8 u32>: small);\nif a<b and c>d;\nstruct.Sorted<Item has Ranked>\n{\n}");
+    hasScope(t, 'Largest', 'entity.name.function', 0);
+    hasScope(t, '<', 'punctuation.definition.typeparameters', 0);
+    hasScope(t, 'Item', 'entity.name.type.parameter', 0);
+    hasScope(t, 'has', 'keyword.other.has', 2);
+    hasScope(t, 'Ranked', 'entity.other.inherited-class', 2);
+    hasScope(t, 'Sum', 'entity.name.function', 4);
+    hasScope(t, 'To', 'entity.name.type.parameter', 4);
+    hasScope(t, '<', 'punctuation.definition.typeparameters', 6);
+    hasScope(t, 'int', 'storage.type.primitive', 6);
+    hasScope(t, 'i64', 'storage.type.primitive', 6);
+    hasScope(t, '<', 'punctuation.definition.typeparameters', 7);
+    hasScope(t, 'u8', 'storage.type.primitive', 8);
+    hasScope(t, 'u32', 'storage.type.primitive', 8);
+    hasScope(t, '<', 'keyword.operator.comparison', 9);
+    hasScope(t, '>', 'keyword.operator.comparison', 9);
+    hasScope(t, 'has', 'keyword.other.has', 10);
+    hasScope(t, 'Ranked', 'entity.other.inherited-class', 10);
+});
+
 test('fenced ```phi blocks in Markdown', async () => {
     const g = await grammar('markdown.phi.codeblock');
     let state = vsctm.INITIAL;
@@ -301,7 +351,8 @@ test('every .phi file in the PHI repository highlights without invalid tokens', 
     const files = phiFiles();
     assert.ok(files.length > 50);
     for (const file of files) {
-        if (/error_/.test(path.basename(file))) continue;
+        // a test of the compiler's errors has what's wrong in it on purpose
+        if (/error_/.test(path.basename(file)) || fs.existsSync(file.replace(/\.phi$/, '.errors'))) continue;
         const tokens = await tokenize(fs.readFileSync(file, 'utf8'));
         const bad = tokens.find(t => t.scopes.some(s => s.startsWith('invalid')));
         assert.ok(!bad, `${path.relative(phiRoot, file)}:${bad && bad.line + 1}: '${bad?.text}' is ${bad?.scopes.join(' ')}`);

@@ -1,8 +1,13 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-/** The PHI repository, for tests that read real PHI code. */
-export const phiRoot = process.env.PHI_ROOT || path.resolve(__dirname, '../../../../Libraries/PHI');
+/**
+ * The PHI repository, for tests that read real PHI code: $PHI_ROOT, or the first that's there of
+ * ../../Libraries/PHI and ../PHI (a folder beside this one).
+ */
+const extension = path.resolve(__dirname, '../..');
+const places = [path.resolve(extension, '../../Libraries/PHI'), path.resolve(extension, '../PHI')];
+export const phiRoot = process.env.PHI_ROOT || places.find(p => fs.existsSync(path.join(p, 'lib', 'phi'))) || places[0];
 export const haveRepo = fs.existsSync(path.join(phiRoot, 'lib', 'phi'));
 
 export function phiFiles(dir = phiRoot): string[] {

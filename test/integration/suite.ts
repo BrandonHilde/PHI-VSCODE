@@ -248,6 +248,27 @@ export async function run(): Promise<void> {
         }
     });
 
+    await step('a program that uses a library of the vendor folder: the server finds the folder, and its use opens the module', async () => {
+        if (!fs.existsSync(path.join(root, 'samples', 'raylib', 'ball.phi'))) return;      // a PHI from before the vendor folder
+        const ball = await open('samples/raylib/ball.phi');
+        await new Promise(r => setTimeout(r, 4000));
+        // (the server runs from a copy of phi, which has no vendor folder beside it. What PHI 1.0's
+        // server does say of such a program is its own: with no --target it's checked as PHI OS's,
+        // which can't call a C library)
+        const errors = vscode.languages.getDiagnostics(ball.uri).filter(d => d.severity === vscode.DiagnosticSeverity.Error).map(d => d.message);
+        assert.deepEqual(errors.filter(m => /can't find/.test(m)), []);
+        // (the use itself, at the start of its line: the comment above it names it too)
+        const use = ball.positionAt(/^use vendor\.raylib;/m.exec(ball.getText())!.index + 'use vendor.r'.length);
+        const defs = await vscode.commands.executeCommand<(vscode.Location | vscode.LocationLink)[]>('vscode.executeDefinitionProvider', ball.uri, use);
+        assert.match(targetOf(defs[0]).uri.fsPath.replace(/\\/g, '/'), /vendor\/raylib\/raylib\.phi$/);
+        const hovers = await vscode.commands.executeCommand<vscode.Hover[]>('vscode.executeHoverProvider', ball.uri, use);
+        assert.match(hoverText(hovers), /A C library that comes with PHI: raylib/);
+        const typed = await vscode.workspace.openTextDocument({ language: 'phi', content: 'use ven' });
+        const list = await vscode.commands.executeCommand<vscode.CompletionList>('vscode.executeCompletionItemProvider', typed.uri, new vscode.Position(0, 7));
+        const labels = list.items.map(i => (typeof i.label === 'string' ? i.label : i.label.label));
+        assert.ok(labels.includes('vendor.raylib'), labels.join(','));
+    });
+
     await step('completion after a:i. is only what its struct has, each once, with its signature', async () => {
         const doc = await open('tests/struct_methods.phi');
         const edit = new vscode.WorkspaceEdit();

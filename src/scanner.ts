@@ -259,7 +259,7 @@ export function scan(text: string): ScanResult {
 
     const docs = commentIndex(text, comments, lineStarts);
 
-    const at = (i: number): Token => tokens[Math.min(i, tokens.length - 1)];
+    const at = (i: number): Token => tokens[Math.max(0, Math.min(i, tokens.length - 1))];
     const is = (i: number, text: string) => at(i).text === text && at(i).kind !== 'string' && at(i).kind !== 'raw';
     const isIdent = (i: number) => at(i).kind === 'ident';
     const isName = (i: number) => isIdent(i) && !reservedWords.has(at(i).text);
@@ -314,11 +314,11 @@ export function scan(text: string): ScanResult {
     }
 
     /**
-     * a type at token i: int, u8, ptr<Task>, ptr<ptr<u8>>, method<int: int>, Task, and a struct
-     * that takes types with them, Stack<int>; returns its text and the token after it
+     * a type at token i: int, u8, ptr<Task>, ptr<ptr<u8>>, vec<f32>, method<int: int>, Task, and a
+     * struct that takes types with them, Stack<int>; returns its text and the token after it
      */
     function readType(i: number, allowStruct: boolean): { type: string; next: number } | undefined {
-        if ((is(i, 'ptr') || is(i, 'method')) && is(i + 1, '<')) {
+        if ((is(i, 'ptr') || is(i, 'vec') || is(i, 'method')) && is(i + 1, '<')) {
             let depth = 1;
             let k = i + 2;
             while (depth > 0 && at(k).kind !== 'eof' && !at(k).startsLine) {
@@ -356,10 +356,12 @@ export function scan(text: string): ScanResult {
         const nameToken = at(t.next);
 
         // a struct-typed declaration needs something after the name that only a declaration has
-        if (!primitive.has(t.type) && !t.type.startsWith('ptr<') && !t.type.startsWith('method<')) {
-            if (!statementStart(i)) return undefined;
+        if (!primitive.has(t.type) && !/^(?:ptr|vec|method)</.test(t.type)) {
+            // (a parameter starts after the header's ':' or the parameter before it: [Draw: Player p; Item best;])
+            const starts = until !== undefined ? at(i - 1).text === ':' || at(i - 1).text === ';' : statementStart(i);
+            if (!starts) return undefined;
             const after = at(t.next + 1).text;
-            if (![':', '=', ';', '[', ...(isNew ? ['at'] : [])].includes(after)) return undefined;
+            if (![':', '=', ';', '[', ...(isNew ? ['at'] : []), ...(until !== undefined ? [']'] : [])].includes(after)) return undefined;
         }
 
         let end: number;
@@ -390,11 +392,20 @@ export function scan(text: string): ScanResult {
         return next;
     }
 
+    /** The ']' that closes the '[' at token i, past the brackets of an array parameter: [Sum: int items[];] */
+    function closingBracket(i: number): number {
+        let depth = 0;
+        let k = i + 1;
+        for (; at(k).kind !== 'eof'; k++) {
+            if (is(k, '[')) depth++;
+            else if (is(k, ']') && depth-- === 0) break;
+        }
+        return k;
+    }
+
     function openMethod(i: number): number {
         const open = at(i);
-        // find the closing ']'
-        let close = i + 1;
-        while (at(close).kind !== 'eof' && at(close).text !== ']') close++;
+        const close = closingBracket(i);
 
         // a method still open (missing [end]) ends here
         if (currentMethod()) closeMethod(open.start, false);
@@ -410,8 +421,10 @@ export function scan(text: string): ScanResult {
         } else if (isIdent(i + 1)) {
             symbol = method('method', at(i + 1));
             symbol.parameters = [];
-            if (is(i + 2, ':')) {
-                let k = i + 3;
+            // [Largest<Item>: Item items[];]  the types it takes come before its parameters
+            const afterName = typesEnd(i + 2) ?? i + 2;
+            if (is(afterName, ':')) {
+                let k = afterName + 1;
                 while (k < close) {
                     const next = tryDeclaration(k, 'parameter', symbol, close);
                     if (next === undefined) { k++; continue; }
@@ -470,7 +483,19 @@ export function scan(text: string): ScanResult {
         }, currentMethod() ?? currentClass());
     }
 
-    /** Header words after a struct's name, up to its '{': foreign, has A B. */
+    /** What a list declared in sight holds, for the name `if list has p when ...` gives one of them. */
+    function elementType(list: Token): string | undefined {
+        if (list.kind !== 'ident') return undefined;
+        const owners = [currentMethod(), currentClass()];
+        for (const owner of owners) {
+            const found = owner?.children.find(c => c.name === list.text);
+            const type = found?.type;
+            if (type) return /^[A-Z]\w*$/.test(type) ? type : undefined;
+        }
+        return undefined;
+    }
+
+    /** Header words after a struct's name, up to its '{': foreign, has A B; and is Other, for another name. */
     function headerEnd(from: number): number {
         let k = from;
         while (isIdent(k) && !at(k).startsLine) k++;
@@ -524,6 +549,14 @@ export function scan(text: string): ScanResult {
                 signature: text.slice(t.start, t.text === 'struct' ? Math.max(headerEnd(afterName), at(afterName - 1).end) : name.end).replace(/\s+/g, ' '), children: [],
             };
             add(pendingHeader, undefined);
+            // struct.Texture2D is Texture;  another name for a struct, with no body of its own
+            if (t.text === 'struct' && is(afterName, 'is') && isIdent(afterName + 1) && !at(afterName).startsLine) {
+                pendingHeader.type = at(afterName + 1).text;
+                pendingHeader.end = at(afterName + 1).end;
+                pendingHeader = undefined;
+                i = afterName + 1;
+                continue;
+            }
             i = afterName - 1;
             continue;
         }
@@ -564,11 +597,13 @@ export function scan(text: string): ScanResult {
             continue;
         }
 
-        // method headers and [end], in a class or a struct
-        if (t.text === '[' && t.kind === 'punct' && statementStart(i) && (top?.kind === 'class' || top?.kind === 'struct' || top?.kind === 'method')) {
+        // method headers and [end], in a class or a struct (not an array's second size: int table[ROWS][COLS];)
+        const secondSize = i > 0 && at(i - 1).text === ']' && at(i - 1).end === t.start;
+        // (a file of methods alone, with no class around them, is a part of one: a vendor library's class.phi)
+        const partOfAClass = !top && t.startsLine && (is(i + 1, 'end') || (isIdent(i + 1) && (is(i + 2, ':') || is(i + 2, ']') || is(i + 2, '<'))));
+        if (t.text === '[' && t.kind === 'punct' && statementStart(i) && !secondSize && (top?.kind === 'class' || top?.kind === 'struct' || top?.kind === 'method' || partOfAClass)) {
             if (is(i + 1, 'end')) {
-                let close = i + 1;
-                while (at(close).kind !== 'eof' && at(close).text !== ']') close++;
+                const close = closingBracket(i);
                 closeMethod(at(close).end, is(i + 2, ':'));
                 i = close;
             } else {
@@ -602,8 +637,12 @@ export function scan(text: string): ScanResult {
             if (t.text === 'if' || t.text === 'elif') {
                 // if call Load: path throws err  declares what it catches
                 const here = line(t.start);
-                for (let k = i + 1; at(k).kind !== 'eof' && line(at(k).start) === here; k++)
+                for (let k = i + 1; at(k).kind !== 'eof' && line(at(k).start) === here; k++) {
                     if (is(k, 'throws') && isName(k + 1)) addNamed(at(k + 1), 'Error', `throws ${at(k + 1).text}`);
+                    // if players has p when p.score is 0  names the element it finds
+                    if (is(k, 'has') && isName(k + 1) && is(k + 2, 'when'))
+                        addNamed(at(k + 1), elementType(at(k - 1)), `${text.slice(at(i + 1).start, at(k + 1).end).replace(/\s+/g, ' ')}`);
+                }
             }
             if (t.text === 'while') {
                 if (is(i + 1, 'each') && isName(i + 2)) {
@@ -798,6 +837,18 @@ export function callContextAt(result: ScanResult, offset: number): { name: strin
         qualifier = name;
         name = tokens[j + 2].text;
         j += 2;
+    }
+    // call Lists.Swap<int>: a b  the types a call gives come before its ':'
+    if (tokens[j + 1]?.text === '<') {
+        let k = j + 2;
+        let depth = 1;
+        while (depth > 0 && k < tokens.length && (tokens[k].kind === 'ident' || tokens[k].text === '<' || tokens[k].text === '>' || tokens[k].text === '>>')) {
+            if (tokens[k].text === '<') depth++;
+            else if (tokens[k].text === '>') depth--;
+            else if (tokens[k].text === '>>') depth -= 2;
+            k++;
+        }
+        if (depth === 0) j = k - 1;
     }
     if (tokens[j + 1]?.text !== ':' || tokens[j + 1].end > offset) return undefined;
 

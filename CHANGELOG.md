@@ -2,6 +2,38 @@
 
 ## Not yet released
 
+Up to date with PHI 1.0:
+
+- New words highlighted, described on hover and completed: C's `lng`, `ulng`, `isz` and `usz`,
+  `exists`, and the class base `MacOS`. `arm.Name` blocks are described as what a macOS program
+  takes.
+- Methods that take types: the heading (`[Largest<Item>: Item items[];]`,
+  `[Higher<Item has Ranked>: ...]`) and the types a call gives (`(Lists.Largest<int>: scores)`,
+  `(counts.Sum<i64>)`) are highlighted, and the outline, hovers and signature help read such a
+  method's parameters. `struct.Sorted<Item has Ranked>` shows the interface its type must have.
+- Text past ASCII: `\uNNNN` and `\UNNNNNNNN` are escapes.
+- `if players has p when p.score is 0` declares `p`, of what the list holds, so its fields are
+  found and completed.
+- `struct.Texture2D is Texture;`, another name for a struct: highlighted, in the outline, and a
+  variable of one finds the other's fields.
+- A library with a file named for each system, `use 'zlib1.dll' '/usr/lib/libz.1.dylib'
+  'libz.so.1' as Z;`, is highlighted whole.
+- The vendor folder: `use vendor.raylib;` goes to its module, its hover says what the library
+  is, and `use` completes the libraries PHI comes with. The language server is told where the
+  folder is, which it lost when run from a copy of `phi`, so such a program no longer says it
+  can't find it.
+- Pointers to pointers and to vectors (`ptr<ptr<u8>> rows;`, `ptr<vec<u8>> blocks;`) are
+  highlighted as types, with no comparison in them.
+- Fixed: a method's first parameter of a struct's type (`[Draw: Player p;]`) wasn't found; a
+  heading with an array parameter (`[Sum: int items[];]`) was cut short at its `[]`; an
+  array's second size (`int table[ROWS][COLS];`) read as a method; a file starting with
+  `const` stopped the scanner. A file of methods with no class around them (a vendor library's
+  `class.phi`) has an outline.
+- Hovers follow 1.0's facts: a struct is laid out as C's is, a kernel is loaded at `0x100000`,
+  a `str` is UTF-8 and grows, `throws` on an `[end: ...]` line says which answers fail.
+- The built-in functions are up to date with the compiler.
+- `build.sh` and `build.bat` build the `.vsix` in one step. The tests find the PHI repository
+  in a folder beside this one too (`../PHI`).
 - `vec<T>`, PHI's vectors (`vec<f32> v: 1.0 2.0 3.0 4.0;`), is highlighted as a type, as
   `ptr<T>` is.
 - `dec` and `fin` aren't types any more (PHI has taken them out: its numbers are whole ones

@@ -8,3 +8,5 @@ scripts/**
 tsconfig.json
 *.vsix
 .gitignore
+build.sh
+build.bat

@@ -53,7 +53,8 @@ export class PhiServer implements vscode.Disposable {
             client = new LanguageClient(
                 'phi',
                 'PHI',
-                { command: this.runnableCopy(compiler), args: ['lsp'] },
+                // (a copy of phi isn't beside the vendor folder any more, so it's told where that is)
+                { command: this.runnableCopy(compiler), args: ['lsp'], options: { env: { ...process.env, ...(this.ws.vendor ? { PHI_VENDOR: this.ws.vendor } : {}) } } },
                 {
                     documentSelector: [{ scheme: 'file', language: 'phi' }],
                     outputChannel: this.output,

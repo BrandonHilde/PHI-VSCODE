@@ -59,11 +59,22 @@ function members(scans: FileScan[], name: string, className?: string): Target[] 
 }
 
 function fields(scans: FileScan[], name: string, structName?: string): Target[] {
+    structName = structName && named(scans, structName);
     const out: Target[] = [];
     for (const { file, result } of scans)
         for (const s of result.allSymbols)
             if (isOfAStruct(s) && s.name === name && (!structName || s.container?.name === structName)) out.push({ file, symbol: s });
     return out;
+}
+
+/** The struct a name is another name for (struct.Texture2D is Texture;), or the name itself. */
+function named(scans: FileScan[], structName: string): string {
+    for (let turn = 0; turn < 8; turn++) {
+        const other = topLevel(scans, structName, new Set(['struct'])).find(t => t.symbol.type)?.symbol.type;
+        if (!other) break;
+        structName = other;
+    }
+    return structName;
 }
 
 /** A field, or a method of a struct or an interface. */

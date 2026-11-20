@@ -6,7 +6,7 @@ import { findAsmLine } from '../src/asmMap';
 import { classBases, keywords, primitiveTypes, reservedWords } from '../src/languageData';
 import { callContextAt, lex, scan, symbolAt } from '../src/scanner';
 import { FileScan, resolveAt } from '../src/resolver';
-import { findCompiler, findLibrary, parseDiagnostics, resolveDiagnosticPath, resolveUse, check } from '../src/toolchain';
+import { findCompiler, findLibrary, findVendor, parseDiagnostics, resolveDiagnosticPath, resolveUse, vendorModules, check } from '../src/toolchain';
 import { cursor, haveRepo, phiFiles, phiRoot } from './helpers';
 
 const methodsSource = `phi.Methods:Library
@@ -111,6 +111,120 @@ phi.K:Program
         ['undo:Stack<int>', 'both:Pair<u8 Stack<int>>', 'same:ptr<Stack<int>>', 'a:int', 'b:int']);
 });
 
+test('scanner: methods that take types, vectors, C\'s types and arrays of more than one size', () => {
+    const r = scan(`phi.Lists:Library
+{
+	int table[3][4];
+	ulng size: 6100;
+	vec<f32> lanes: 1.0 2.0 3.0 4.0;
+	ptr<vec<u8>> blocks;
+
+	[Largest<Item>: Item items[];]
+		Item best: items:0;
+	[end: best]
+
+	[Higher<Item has Ranked>: Item a; Item b;]
+	[end: a]
+
+	[Wider<From To>: From value: 0; : To]
+	[end: value as To]
+
+	[Read: str path;]
+	[end: count throws below 0]
+}
+struct.Stack<Item>
+{
+	Item items[];
+
+	[Sum<To>]
+		To total: 0;
+	[end: total]
+}`);
+    const lists = r.symbols[0];
+    assert.deepEqual(lists.children.filter(c => c.kind === 'variable').map(c => `${c.name}:${c.type}`),
+        ['table:int', 'size:ulng', 'lanes:vec<f32>', 'blocks:ptr<vec<u8>>']);
+    const methods = lists.children.filter(c => c.kind === 'method');
+    assert.deepEqual(methods.map(m => m.name), ['Largest', 'Higher', 'Wider', 'Read']);
+    assert.deepEqual(methods.map(m => m.parameters?.map(p => `${p.type} ${p.name}`).join(', ')), ['Item items', 'Item a, Item b', 'From value', 'str path']);
+    assert.equal(methods[0].signature, '[Largest<Item>: Item items[];]');
+    assert.ok(methods.every(m => m.returns));
+    assert.deepEqual(methods[0].children.map(c => `${c.kind}:${c.name}`), ['parameter:items', 'variable:best']);
+    assert.deepEqual(r.symbols[1].children.map(c => `${c.kind}:${c.name}`), ['field:items', 'method:Sum']);
+});
+
+test('scanner: if list has p when ..., another name for a struct, and methods with no class around them', () => {
+    const r = scan(`struct.Texture
+{
+	int width;
+}
+struct.Texture2D is Texture;
+struct.Player
+{
+	int score;
+}
+phi.Game:Program
+{
+	Player players[8];
+	Texture2D skin;
+
+	[Tick]
+		if players has p when p.score is 0
+			p.score is 1;
+		;;
+		log skin.width;
+	[end]
+}`);
+    assert.deepEqual(r.symbols.map(s => `${s.kind}:${s.name}:${s.type ?? ''}`), ['struct:Texture:', 'struct:Texture2D:Texture', 'struct:Player:', 'class:Game:Program']);
+    assert.equal(r.symbols[1].signature, 'struct.Texture2D is Texture');
+    assert.deepEqual(r.symbols[2].children.map(c => c.name), ['score'], 'the struct after another name for one has its own fields');
+    const p = r.allSymbols.find(s => s.name === 'p');
+    assert.ok(p && p.kind === 'variable' && p.type === 'Player' && p.container?.name === 'Tick', JSON.stringify(p && [p.kind, p.type]));
+
+    // a field through the other name is the struct's own
+    const current: FileScan = { file: 'game.phi', result: r };
+    const width = resolveAt(current, r.text.indexOf('width;\n\t[end]'), [], () => undefined);
+    assert.ok(width?.kind === 'symbols' && width.targets.length === 1 && width.targets[0].symbol.container?.name === 'Texture');
+    const score = resolveAt(current, r.text.indexOf('score is 0'), [], () => undefined);
+    assert.ok(score?.kind === 'symbols' && score.targets[0].symbol.container?.name === 'Player');
+
+    // a vendor library's class.phi: methods that go into its class
+    const part = scan('# macros, as methods\n[lua_pop: ptr<lua_State> L; int n;]\n\tcall Lua.lua_settop: L 0 - n - 1;\n[end]\n\n[lua_isnil: ptr<lua_State> L; int index; : bln]\n[end: (Lua.lua_type: L index) is 0]\n');
+    assert.deepEqual(part.symbols.map(s => `${s.kind}:${s.name}:${s.returns}`), ['method:lua_pop:false', 'method:lua_isnil:true']);
+    assert.deepEqual(part.symbols[0].parameters?.map(x => x.name), ['L', 'n']);
+});
+
+test('toolchain: the vendor folder, and use vendor.NAME', (t) => {
+    const os = require('os') as typeof import('os');
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'phi-vendor-'));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const write = (file: string, text: string) => { fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, text); };
+    const compiler = path.join(root, 'Compiler', 'Phi.Cli', 'bin', 'Debug', 'net10.0', 'phi');
+    write(compiler, '');
+    write(path.join(root, 'vendor', 'README.md'), '');
+    write(path.join(root, 'vendor', 'zlib', 'zlib.phi'), '');
+    write(path.join(root, 'vendor', 'zlib', 'package.json'), '{ "name": "zlib", "version": "1.4", "about": "compression" }');
+    write(path.join(root, 'vendor', 'vulkan', 'vulkan.phi'), '');
+    write(path.join(root, 'vendor', 'vulkan', 'start_linux.phi'), '');
+    write(path.join(root, 'game', 'main.phi'), '');
+
+    const vendor = findVendor(compiler, {});
+    assert.equal(vendor, path.join(root, 'vendor'));
+    assert.equal(findVendor(compiler, { PHI_VENDOR: path.join(root, 'game') }), path.join(root, 'game'));
+    assert.equal(findVendor(compiler, { PHI_VENDOR: path.join(root, 'none') }), undefined);
+    assert.equal(findVendor(undefined, {}), undefined);
+
+    const main = path.join(root, 'game', 'main.phi');
+    assert.equal(resolveUse('vendor.zlib', main, undefined, undefined, vendor), path.join(vendor!, 'zlib', 'zlib.phi'));
+    assert.equal(resolveUse('vendor.vulkan.start_linux', main, undefined, undefined, vendor), path.join(vendor!, 'vulkan', 'start_linux.phi'));
+    assert.equal(resolveUse('vendor.none', main, undefined, undefined, vendor), undefined);
+    assert.equal(resolveUse('vendor.zlib', main, undefined), undefined);
+    assert.deepEqual(vendorModules(vendor).map(m => [m.name, m.about]), [['vendor.vulkan', undefined], ['vendor.zlib', 'zlib 1.4: compression']]);
+
+    // a file of the program's own comes first
+    write(path.join(root, 'game', 'vendor', 'zlib.phi'), '');
+    assert.equal(resolveUse('vendor.zlib', main, undefined, undefined, vendor), path.join(root, 'game', 'vendor', 'zlib.phi'));
+});
+
 test('resolver: a variable of a struct that takes types is its struct, for its fields and methods', () => {
     const { text, offset } = cursor(`struct.Stack<Item>
 {
@@ -148,7 +262,7 @@ test('scanner: every .phi file in the PHI repository', { skip: !haveRepo && 'PHI
         }
         // every method header a line-based regex sees (outside block comments) is found
         const withoutComments = r.comments.reduce((t, c) => t.slice(0, c.start) + t.slice(c.start, c.end).replace(/[^\n]/g, ' ') + t.slice(c.end), text);
-        const expected = (withoutComments.match(/^\s*\[\s*(?!end\b)[A-Za-z_]\w*\s*[\]:]/gm) ?? []).length;
+        const expected = (withoutComments.match(/^\s*\[\s*(?!end\b)[A-Za-z_]\w*(?:<[\w\s]*>)?\s*[\]:]/gm) ?? []).length;
         const found = r.allSymbols.filter(s => s.kind === 'method').length;
         assert.equal(found, expected, `${path.relative(phiRoot, file)}: found ${found} methods, expected ${expected}`);
         total += found;
@@ -248,6 +362,8 @@ test('call context: argument index for signature help', () => {
     assert.deepEqual(at('call x is Fat.ReadFile: \'a.txt\' buffer:i |'), { name: 'ReadFile', qualifier: 'Fat', argument: 2 });
     assert.deepEqual(at('call OS.DrawRectangle: (x + 1) y |'), { name: 'DrawRectangle', qualifier: 'OS', argument: 2 });
     assert.deepEqual(at('call OS.SetInterruptHandler: 0x09 addr |'), { name: 'SetInterruptHandler', qualifier: 'OS', argument: 1 });
+    assert.deepEqual(at('call Lists.Swap<int>: addr first |'), { name: 'Swap', qualifier: 'Lists', argument: 1 });
+    assert.deepEqual(at('call best is Largest<ptr<u8>>: |'), { name: 'Largest', qualifier: undefined, argument: 0 });
     assert.equal(at('call Add: 2 3;|'), undefined);
     assert.equal(at('log x |'), undefined);
 });

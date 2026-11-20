@@ -2,12 +2,13 @@
 // (Compiler/Phi.Compiler/Semantics/Builtins.cs), so hovers, completions and signature help
 // always match what the compiler accepts.
 //
-//   node scripts/sync-builtins.js [path/to/PHI]      (default: ../../Libraries/PHI or $PHI_ROOT)
+//   node scripts/sync-builtins.js [path/to/PHI]      (default: $PHI_ROOT, ../../Libraries/PHI or ../PHI)
 
 const fs = require('fs');
 const path = require('path');
 
-const root = process.argv[2] || process.env.PHI_ROOT || path.resolve(__dirname, '../../../Libraries/PHI');
+const places = [path.resolve(__dirname, '../../../Libraries/PHI'), path.resolve(__dirname, '../../PHI')];
+const root = process.argv[2] || process.env.PHI_ROOT || places.find(p => fs.existsSync(path.join(p, 'Compiler'))) || places[0];
 const source = path.join(root, 'Compiler/Phi.Compiler/Semantics/Builtins.cs');
 const out = path.resolve(__dirname, '../src/builtins.generated.ts');
 

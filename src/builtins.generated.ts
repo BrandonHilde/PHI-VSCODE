@@ -534,6 +534,19 @@ export const builtinFunctions: BuiltinFunction[] = [
         "description": "a Linux program: clone, which lib/phi/host/threads_linux.phi can't make itself (the new thread comes back on another stack)"
     },
     {
+        "name": "OS.ThreadCreate",
+        "aliases": [],
+        "parameters": [
+            "frame",
+            "size",
+            "id"
+        ],
+        "textParameters": [],
+        "returns": true,
+        "onlyIn": null,
+        "description": "a macOS program: pthread_create, on a stack of size bytes, starting at its first instructions (lib/phi/host/threads_macos.phi); 0 if it started"
+    },
+    {
         "name": "OS.ThreadEntry",
         "aliases": [],
         "parameters": [],
