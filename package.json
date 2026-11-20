@@ -95,6 +95,42 @@
         "icon": "$(debug-alt)"
       },
       {
+        "command": "phi.runLinux",
+        "title": "Build and Run on Linux",
+        "category": "PHI",
+        "icon": "$(play)"
+      },
+      {
+        "command": "phi.runLinux32",
+        "title": "Build and Run on Linux (32-bit)",
+        "category": "PHI",
+        "icon": "$(play)"
+      },
+      {
+        "command": "phi.runWindows",
+        "title": "Build and Run on Windows",
+        "category": "PHI",
+        "icon": "$(play)"
+      },
+      {
+        "command": "phi.runWindows32",
+        "title": "Build and Run on Windows (32-bit)",
+        "category": "PHI",
+        "icon": "$(play)"
+      },
+      {
+        "command": "phi.runMacOS",
+        "title": "Build and Run on macOS",
+        "category": "PHI",
+        "icon": "$(play)"
+      },
+      {
+        "command": "phi.buildFor",
+        "title": "Build for…",
+        "category": "PHI",
+        "icon": "$(package)"
+      },
+      {
         "command": "phi.test",
         "title": "Run Tests",
         "category": "PHI",
@@ -121,13 +157,38 @@
       "editor/title/run": [
         {
           "command": "phi.run",
-          "when": "resourceLangId == phi",
+          "when": "resourceLangId == phi && phi.fileRuns != program",
           "group": "navigation@0"
         },
         {
           "command": "phi.runDebug",
-          "when": "resourceLangId == phi",
+          "when": "resourceLangId == phi && phi.fileRuns != program",
           "group": "navigation@1"
+        },
+        {
+          "command": "phi.runLinux",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isLinux",
+          "group": "navigation@0"
+        },
+        {
+          "command": "phi.runLinux32",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isLinux",
+          "group": "navigation@1"
+        },
+        {
+          "command": "phi.runWindows",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isWindows",
+          "group": "navigation@2"
+        },
+        {
+          "command": "phi.runWindows32",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isWindows",
+          "group": "navigation@3"
+        },
+        {
+          "command": "phi.runMacOS",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isMac",
+          "group": "navigation@4"
         }
       ],
       "editor/context": [
@@ -142,8 +203,28 @@
           "group": "phi@2"
         },
         {
+          "command": "phi.buildFor",
+          "when": "resourceLangId == phi && phi.fileRuns == program",
+          "group": "phi@2"
+        },
+        {
           "command": "phi.run",
-          "when": "resourceLangId == phi",
+          "when": "resourceLangId == phi && phi.fileRuns != program",
+          "group": "phi@3"
+        },
+        {
+          "command": "phi.runLinux",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isLinux",
+          "group": "phi@3"
+        },
+        {
+          "command": "phi.runWindows",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isWindows",
+          "group": "phi@3"
+        },
+        {
+          "command": "phi.runMacOS",
+          "when": "resourceLangId == phi && phi.fileRuns == program && isMac",
           "group": "phi@3"
         },
         {
@@ -163,15 +244,39 @@
         },
         {
           "command": "phi.run",
-          "when": "editorLangId == phi"
+          "when": "editorLangId == phi && phi.fileRuns != program"
         },
         {
           "command": "phi.runDebug",
-          "when": "editorLangId == phi"
+          "when": "editorLangId == phi && phi.fileRuns != program"
         },
         {
           "command": "phi.showAssembly",
           "when": "editorLangId == phi"
+        },
+        {
+          "command": "phi.runLinux",
+          "when": "editorLangId == phi && phi.fileRuns == program && (isLinux || isWindows)"
+        },
+        {
+          "command": "phi.runLinux32",
+          "when": "editorLangId == phi && phi.fileRuns == program && (isLinux || isWindows)"
+        },
+        {
+          "command": "phi.runWindows",
+          "when": "editorLangId == phi && phi.fileRuns == program && isWindows"
+        },
+        {
+          "command": "phi.runWindows32",
+          "when": "editorLangId == phi && phi.fileRuns == program && isWindows"
+        },
+        {
+          "command": "phi.runMacOS",
+          "when": "editorLangId == phi && phi.fileRuns == program && isMac"
+        },
+        {
+          "command": "phi.buildFor",
+          "when": "editorLangId == phi && phi.fileRuns == program"
         }
       ]
     },
@@ -179,7 +284,22 @@
       {
         "command": "phi.run",
         "key": "f5",
-        "when": "editorLangId == phi && !inDebugMode"
+        "when": "editorLangId == phi && phi.fileRuns != program && !inDebugMode"
+      },
+      {
+        "command": "phi.runLinux",
+        "key": "f5",
+        "when": "editorLangId == phi && phi.fileRuns == program && isLinux && !inDebugMode"
+      },
+      {
+        "command": "phi.runWindows",
+        "key": "f5",
+        "when": "editorLangId == phi && phi.fileRuns == program && isWindows && !inDebugMode"
+      },
+      {
+        "command": "phi.runMacOS",
+        "key": "f5",
+        "when": "editorLangId == phi && phi.fileRuns == program && isMac && !inDebugMode"
       }
     ],
     "configuration": {

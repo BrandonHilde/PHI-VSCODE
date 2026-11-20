@@ -2,6 +2,12 @@
 
 ## Not yet released
 
+- ▶ and F5 follow the file. A program by itself (`phi.Name:Program`) can't boot in QEMU, so it
+  gets **Build and Run on Linux** (or **on Windows**, **on macOS**: your system's), which is
+  `phi run --target linux64`, with a 32-bit one beside it in the ▶ menu; a kernel or a boot
+  sector has **Build and Run in QEMU** as before. **PHI: Build for…** builds a program for
+  any system.
+
 Up to date with PHI 1.0:
 
 - New words highlighted, described on hover and completed: C's `lng`, `ulng`, `isz` and `usz`,

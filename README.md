@@ -21,7 +21,10 @@ Language support for [PHI](https://github.com/BrandonHilde/PHI), the language fo
 - **Signature help** for space-separated arguments: `call OS.DrawRectangle: x y |width| height color`.
 - **Outline**, breadcrumbs, **workspace symbols** (Ctrl+T) and **folding** for classes, structs,
   methods, `if`/`while` blocks, asm blocks and comments.
-- **Build and run**: ▶ in the editor title (or F5) builds and boots the file in QEMU. The PHI
+- **Build and run**: ▶ in the editor title (or F5) follows the file. A kernel or a boot sector
+  builds and boots in QEMU. A program by itself (`phi.Name:Program`) can't boot, so it builds
+  and runs on your system: **Build and Run on Linux**, **on Windows** or **on macOS**, with a
+  32-bit one in the ▶ menu, and **PHI: Build for…** builds it for any system. The PHI
   menu in the editor's context menu has Check, Build, Run and **Show Generated Assembly**, which
   opens the `.asm` beside your code at the line the cursor is on.
 - A **`phi` task type** for `tasks.json`, with a `$phi` problem matcher.
@@ -76,6 +79,9 @@ Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `
 | PHI: Build | `phi build` the current file |
 | PHI: Build and Run in QEMU (F5) | `phi run`: serial output appears in the terminal |
 | PHI: Build and Run in QEMU (wait for gdb) | `phi run --debug`: QEMU waits for gdb on `localhost:1234` |
+| PHI: Build and Run on Linux / Windows / macOS (F5 in a program) | `phi run --target linux64` (`windows64`, `macos`): the program runs in the terminal. The one for your system is offered; a Linux program runs on Windows too, under WSL |
+| PHI: Build and Run on Linux (32-bit) / Windows (32-bit) | `phi run --target linux` (`windows`) |
+| PHI: Build for… | Pick a system and `phi build --target` it: a Windows program can be built on Linux, and so on (a macOS one needs a Mac) |
 | PHI: Run Tests | `phi test` in the nearest `tests/` folder |
 | PHI: Show Generated Assembly | Build if needed, then open the `.asm` at the cursor's line |
 | PHI: Locate Compiler… | Pick `phi.exe` and save it in `phi.compilerPath` |
@@ -93,7 +99,7 @@ Building and running need `nasm` and `qemu-system-i386`, on `PATH` or set with `
 ```
 
 A program for Linux, Windows or macOS is built with `--target` (`linux`, `linux64`, `windows`,
-`windows64`, `macos`), which a task gives in its `args`:
+`windows64`, `macos`). The commands above give it; a task gives it in its `args`:
 
 ```json
 { "type": "phi", "command": "run", "file": "${file}", "args": ["--target", "linux64"], "problemMatcher": ["$phi"] }

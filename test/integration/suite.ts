@@ -306,6 +306,34 @@ export async function run(): Promise<void> {
         assert.equal(targetOf(defs[0]).range.start.line, 4);
     });
 
+    await step('a program by itself runs on this system, not in QEMU', async () => {
+        const system = process.platform === 'win32' ? 'windows64' : process.platform === 'darwin' ? 'macos' : 'linux64';
+        const command = process.platform === 'win32' ? 'phi.runWindows' : process.platform === 'darwin' ? 'phi.runMacOS' : 'phi.runLinux';
+        await open('tests/append_arrays_program.phi');
+        // (phi.run is QEMU's, and F5's for whoever bound it themselves: in a program it runs it here too)
+        for (const id of [command, 'phi.run']) {
+            const ended = new Promise<{ args: string[]; code: number | undefined }>(resolve => {
+                const listener = vscode.tasks.onDidEndTaskProcess(e => {
+                    const execution = e.execution.task.execution;
+                    if (!(execution instanceof vscode.ProcessExecution) || execution.args[0] !== 'run') return;
+                    listener.dispose();
+                    resolve({ args: execution.args, code: e.exitCode });
+                });
+            });
+            await vscode.commands.executeCommand(id);
+            const task = await Promise.race([ended, new Promise<undefined>(r => setTimeout(() => r(undefined), 60000))]);
+            assert.ok(task, `${id}: no task ran`);
+            assert.deepEqual(task.args.slice(-2), ['--target', system], id);
+            assert.equal(task.code, 0, id);
+        }
+        // a kernel still boots: nothing is added to what phi run is given
+        const kernelFile = await open('samples/kernel.phi');
+        assert.equal(kernelFile.languageId, 'phi');
+        const tasks = await vscode.tasks.fetchTasks({ type: 'phi' });
+        const runTask = tasks.find(t => t.definition.command === 'run');
+        assert.ok(runTask && !(runTask.execution as vscode.ProcessExecution).args.includes('--target'));
+    });
+
     await step('phi can be rebuilt while the server runs, which then starts again', async () => {
         // if the server were running from where phi is built, this would fail on Windows
         cp.execSync('dotnet build Compiler/Phi.Cli --no-incremental -v q --nologo', { cwd: root, stdio: 'pipe', timeout: 120000 });

@@ -5,10 +5,31 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { findAsmLine } from './asmMap';
 import { PhiDiagnostics } from './diagnostics';
-import { symbolAt } from './scanner';
+import { runsAs, symbolAt } from './scanner';
 import { PhiWorkspace } from './workspace';
 
 type PhiCommand = 'check' | 'build' | 'run' | 'test';
+
+/** The systems a program is built for: what --target takes, and what each is called. */
+const systems = [
+    { target: 'linux64', name: 'Linux', detail: '64-bit' },
+    { target: 'linux', name: 'Linux', detail: '32-bit' },
+    { target: 'windows64', name: 'Windows', detail: '64-bit' },
+    { target: 'windows', name: 'Windows', detail: '32-bit' },
+    { target: 'macos', name: 'macOS', detail: 'Apple Silicon; built on a Mac' },
+] as const;
+
+/** Build and Run on ...: a command for each system, shown on the computers that can run it. */
+const runOn: Record<string, string> = {
+    'phi.runLinux': 'linux64',
+    'phi.runLinux32': 'linux',
+    'phi.runWindows': 'windows64',
+    'phi.runWindows32': 'windows',
+    'phi.runMacOS': 'macos',
+};
+
+/** The system a program is run as when nothing says: this computer's, in 64 bits. */
+const here = process.platform === 'win32' ? 'windows64' : process.platform === 'darwin' ? 'macos' : 'linux64';
 
 interface PhiTaskDefinition extends vscode.TaskDefinition {
     type: 'phi';
@@ -52,7 +73,50 @@ export function registerCommands(context: vscode.ExtensionContext, ws: PhiWorksp
         return tasks.execute({ type: 'phi', command, file: doc.fileName, args });
     };
 
+    /**
+     * What the ▶ button and F5 offer follows the file: a kernel or a boot sector boots in QEMU,
+     * and a program by itself (phi.Name:Program), which can't boot, runs on this system.
+     */
+    let said: string | undefined;
+    const sayHowItRuns = () => {
+        const doc = vscode.window.activeTextEditor?.document;
+        const runs = doc?.languageId === 'phi' ? runsAs(ws.scanDocument(doc).result) : undefined;
+        if (runs === said) return;
+        said = runs;
+        void vscode.commands.executeCommand('setContext', 'phi.fileRuns', runs);
+    };
+    let typing: NodeJS.Timeout | undefined;
+    sayHowItRuns();
+
+    /** phi.run is QEMU's. In a program it's F5 from a keybinding of the user's own, say: run it here. */
+    const run = async (args: string[] = []) => {
+        const doc = activePhiFile();
+        if (!doc) return undefined;
+        const program = runsAs(ws.scanDocument(doc).result) === 'program';
+        return runFileTask('run', program ? ['--target', here] : args);
+    };
+
     context.subscriptions.push(
+        vscode.window.onDidChangeActiveTextEditor(sayHowItRuns),
+        vscode.workspace.onDidChangeTextDocument(e => {
+            if (e.document !== vscode.window.activeTextEditor?.document) return;
+            clearTimeout(typing);
+            typing = setTimeout(sayHowItRuns, 300);
+        }),
+        { dispose: () => clearTimeout(typing) },
+
+        ...Object.entries(runOn).map(([command, target]) =>
+            vscode.commands.registerCommand(command, () => runFileTask('run', ['--target', target]))),
+
+        vscode.commands.registerCommand('phi.buildFor', async () => {
+            const doc = activePhiFile();
+            if (!doc) return;
+            const picked = await vscode.window.showQuickPick(
+                systems.map(s => ({ label: s.name, description: s.detail, target: s.target })),
+                { title: `Build ${path.basename(doc.fileName)} for…`, placeHolder: 'The system to build a program for' });
+            if (picked) await runFileTask('build', ['--target', picked.target]);
+        }),
+
         vscode.tasks.registerTaskProvider('phi', tasks),
 
         vscode.commands.registerCommand('phi.check', async () => {
@@ -70,7 +134,7 @@ export function registerCommands(context: vscode.ExtensionContext, ws: PhiWorksp
         }),
 
         vscode.commands.registerCommand('phi.build', () => runFileTask('build')),
-        vscode.commands.registerCommand('phi.run', () => runFileTask('run')),
+        vscode.commands.registerCommand('phi.run', () => run()),
         vscode.commands.registerCommand('phi.runDebug', async () => {
             await runFileTask('run', ['--debug']);
             void vscode.window.showInformationMessage('QEMU is paused, waiting for gdb on localhost:1234 (target remote localhost:1234).');

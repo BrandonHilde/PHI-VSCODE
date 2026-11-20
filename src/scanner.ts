@@ -744,6 +744,17 @@ function commentIndex(text: string, comments: Comment[], lineStarts: number[]) {
 // ---------------------------------------------------------------------------------------------
 // queries
 
+/**
+ * How a file runs: 'machine' is a kernel, or a boot sector and what it loads, which boots in
+ * QEMU; 'program' is a phi.Name:Program by itself, which can't boot, and runs as a program of
+ * the system it's built for (--target); 'module' is neither (a library, a system's module).
+ */
+export function runsAs(result: ScanResult): 'machine' | 'program' | 'module' {
+    const bases = result.symbols.filter(s => s.kind === 'class').map(s => s.type);
+    if (bases.some(b => b === 'Kernel' || b === 'Bootloader' || b === 'OS')) return 'machine';
+    return bases.includes('Program') ? 'program' : 'module';
+}
+
 /** The innermost symbol of the given kinds whose range contains offset. */
 export function symbolAt(result: ScanResult, offset: number, kinds: SymbolKind[]): PhiSymbol | undefined {
     let best: PhiSymbol | undefined;

@@ -4,7 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { findAsmLine } from '../src/asmMap';
 import { classBases, keywords, primitiveTypes, reservedWords } from '../src/languageData';
-import { callContextAt, lex, scan, symbolAt } from '../src/scanner';
+import { callContextAt, lex, runsAs, scan, symbolAt } from '../src/scanner';
 import { FileScan, resolveAt } from '../src/resolver';
 import { findCompiler, findLibrary, findVendor, parseDiagnostics, resolveDiagnosticPath, resolveUse, vendorModules, check } from '../src/toolchain';
 import { cursor, haveRepo, phiFiles, phiRoot } from './helpers';
@@ -191,6 +191,18 @@ phi.Game:Program
     const part = scan('# macros, as methods\n[lua_pop: ptr<lua_State> L; int n;]\n\tcall Lua.lua_settop: L 0 - n - 1;\n[end]\n\n[lua_isnil: ptr<lua_State> L; int index; : bln]\n[end: (Lua.lua_type: L index) is 0]\n');
     assert.deepEqual(part.symbols.map(s => `${s.kind}:${s.name}:${s.returns}`), ['method:lua_pop:false', 'method:lua_isnil:true']);
     assert.deepEqual(part.symbols[0].parameters?.map(x => x.name), ['L', 'n']);
+});
+
+test('how a file runs: a kernel and a boot sector in QEMU, a program by itself on a system', () => {
+    assert.equal(runsAs(scan('phi.Hello:Kernel\n{\n}')), 'machine');
+    assert.equal(runsAs(scan('phi.Pong:Bootloader\n{\n}\nphi.Drawing:OS\n{\n}')), 'machine');
+    assert.equal(runsAs(scan('use vendor.raylib;\n\nphi.Ball:Program\n{\n}')), 'program');
+    assert.equal(runsAs(scan('phi.Helper:Library\n{\n}\nphi.Ball:Program\n{\n}')), 'program');
+    assert.equal(runsAs(scan('phi.Lists:Library\n{\n}')), 'module');
+    assert.equal(runsAs(scan('phi.Files:Linux64\n{\n}')), 'module');
+    assert.equal(runsAs(scan('# phi.Old:Program\nstruct.Point\n{\n\tint x;\n}')), 'module');
+    // a kernel with a program's class beside it boots
+    assert.equal(runsAs(scan('phi.Tool:Program\n{\n}\nphi.Hello:Kernel\n{\n}')), 'machine');
 });
 
 test('toolchain: the vendor folder, and use vendor.NAME', (t) => {
